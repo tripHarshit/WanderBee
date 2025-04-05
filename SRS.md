@@ -139,8 +139,7 @@ WanderBee is a standalone mobile application built using Kotlin and Jetpack Comp
 
 ---
 
-**Document Owner:** [Your Name]  
+**Document Owner:** [Harshit_Tripathi]  
 **Version:** 1.0  
-**Date:** [Fill based on project start]  
+**Date:** [7-04-25]  
 
-> ✅ Next Step (when you're ready): Feature-wise Sprint Task Breakdown + GitHub Repo Setup
