@@ -133,9 +133,10 @@ WanderBee is a standalone mobile application built using Kotlin and Jetpack Comp
 
 ## 6. Appendices
 - A. APIs: OpenTripMap, GeoDB Cities, LibreTranslate
-- B. Firebase: Authentication, Firestore, Realtime DB
-- C. Hilt: For DI across app layers
-- D. Testing Frameworks: JUnit, Compose UI Tests
+- B. AI model: HuggingFace
+- C. Firebase: Authentication, Firestore, Realtime DB
+- D. Hilt: For DI across app layers
+- E. Testing Frameworks: JUnit, Compose UI Tests
 
 ---
 
