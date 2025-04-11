@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "892713144798",
+    "project_id": "wanderbee-417f0",
+    "storage_bucket": "wanderbee-417f0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:892713144798:android:1344ac3f263458b8058d4f",
+        "android_client_info": {
+          "package_name": "com.example.wanderbee"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBED01SIFuvTw2bhjUg_4OOJMvAkIzBDrs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
