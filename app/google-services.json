@@ -12,7 +12,12 @@
           "package_name": "com.example.wanderbee"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "892713144798-1lh9uu643nl0bt65p423vmp2rb74hhn1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBED01SIFuvTw2bhjUg_4OOJMvAkIzBDrs"
@@ -20,7 +25,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "892713144798-1lh9uu643nl0bt65p423vmp2rb74hhn1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
