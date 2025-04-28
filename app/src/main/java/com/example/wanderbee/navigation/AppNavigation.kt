@@ -8,6 +8,9 @@ import androidx.navigation.NavHost
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.wanderbee.screens.authentication.ForgotPassword
+import com.example.wanderbee.screens.authentication.GetShowSignInScreen
+import com.example.wanderbee.screens.authentication.GetShowSignUpScreen
 import com.example.wanderbee.screens.authentication.LoginScreen
 import com.example.wanderbee.screens.authentication.SignUpScreen
 import com.example.wanderbee.screens.home.HomeScreen
@@ -24,10 +27,13 @@ fun WanderBeeNavigation(){
             HomeScreen(navController = navController, viewModel = homeScreenViewModel)
         }
         composable(route = WanderBeeScreens.SignUpScreen.name) {
-            SignUpScreen(navController = navController)
+            GetShowSignUpScreen(navController = navController)
         }
         composable(route = WanderBeeScreens.LoginScreen.name) {
-            LoginScreen(navController = navController)
+            GetShowSignInScreen(navController = navController)
+        }
+        composable(route = WanderBeeScreens.ForgotPassword.name) {
+            ForgotPassword(navController = navController)
         }
     }
 }

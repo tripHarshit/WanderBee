@@ -28,6 +28,7 @@ class HomeScreenViewModel @Inject constructor(
 
     init {
         loadDummyDestinations()
+        fetchUserName()
     }
 
     fun loadDummyDestinations() {
@@ -54,17 +55,16 @@ class HomeScreenViewModel @Inject constructor(
     }
 
     fun fetchUserName() {
-        val uid = firebaseAuth.currentUser?.uid ?: return
-
-        firebaseFireStore.collection("users")
-            .document(uid)
-            .get()
-            .addOnSuccessListener { document ->
-                if (document != null && document.exists()) {
-                    val fetchedName = document.getString("name") ?: ""
-                    _name.value = fetchedName
+        FirebaseAuth.getInstance().currentUser?.uid?.let {
+            FirebaseFirestore
+                .getInstance()
+                .collection("users").document(it).get()
+                .addOnSuccessListener { document ->
+                    if (document != null && document.exists()) {
+                        _name.value = document.getString("name") ?: " "
+                    }
                 }
-            }
+        }
     }
 }
 

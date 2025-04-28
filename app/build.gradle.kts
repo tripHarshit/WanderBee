@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,7 +7,11 @@ plugins {
     id("kotlin-kapt")
     id("dagger.hilt.android.plugin")
     id("com.google.gms.google-services")
+}
 
+
+val localProperties = Properties().apply {
+    file("../local.properties").inputStream().use { load(it) }
 }
 
 android {
@@ -20,7 +26,18 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Add the API keys using buildConfigField
+        buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProperties["OPENWEATHER_API_KEY"]}\"")
+        buildConfigField("String", "GEO_DB_API_KEY", "\"${localProperties["GEO_DB_API_KEY"]}\"")
+        buildConfigField("String", "HUGGINGFACE_API_KEY", "\"${localProperties["HUGGINGFACE_API_KEY"]}\"")
     }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true 
+    }
+
 
     buildTypes {
         release {
@@ -31,13 +48,16 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
     }
@@ -76,10 +96,11 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
 
-    //Navigation
+    // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    //ViewModel
+    // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.5")
 }

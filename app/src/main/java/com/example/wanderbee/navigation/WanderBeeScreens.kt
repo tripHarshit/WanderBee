@@ -4,5 +4,6 @@ enum class WanderBeeScreens {
 
     HomeScreen,
     SignUpScreen,
-    LoginScreen
+    LoginScreen,
+    ForgotPassword
 }

@@ -14,10 +14,10 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun InputField(value: String,
-               onValueChanged: () -> Unit,
+               onValueChanged: (String) -> Unit,
                label: String){
     OutlinedTextField(value = value,
-        onValueChange = { onValueChanged },
+        onValueChange = { onValueChanged(it)  },
         label = { Text(text = label) },
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier

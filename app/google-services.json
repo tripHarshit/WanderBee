@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "892713144798-3kb0t5ptbdp6vp1qd9jjgfch22r7ibat.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.wanderbee",
+            "certificate_hash": "ad3f9ce882e6b7193206568e108fb704ffac9d99"
+          }
+        },
+        {
           "client_id": "892713144798-1lh9uu643nl0bt65p423vmp2rb74hhn1.apps.googleusercontent.com",
           "client_type": 3
         }
