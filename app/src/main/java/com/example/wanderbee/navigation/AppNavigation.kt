@@ -1,5 +1,7 @@
 package com.example.wanderbee.navigation
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.internal.composableLambda
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -17,14 +19,16 @@ import com.example.wanderbee.screens.home.HomeScreen
 import com.example.wanderbee.screens.home.HomeScreenViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun WanderBeeNavigation(){
     val navController = rememberNavController()
     val homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
 
-    NavHost(navController = navController, startDestination = WanderBeeScreens.SignUpScreen.name){
+    NavHost(navController = navController, startDestination = WanderBeeScreens.HomeScreen.name){
         composable(route = WanderBeeScreens.HomeScreen.name) {
-            HomeScreen(navController = navController, viewModel = homeScreenViewModel)
+           HomeScreen(navController = navController, homeScreenViewModel = homeScreenViewModel)
+            //  HomeScreen()
         }
         composable(route = WanderBeeScreens.SignUpScreen.name) {
             GetShowSignUpScreen(navController = navController)

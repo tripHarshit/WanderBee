@@ -45,7 +45,7 @@ fun ForgotPassword(navController: NavController, authViewModel: AuthViewModel = 
     val email = remember { mutableStateOf("") }
 
     if (uiState == State.Loading) {
-        LoadingScreen()
+        LoadingScreen(modifier = Modifier)
         return
     }
 

@@ -25,8 +25,8 @@ import com.example.wanderbee.R
 
 
 @Composable
-fun LoadingScreen(){
-    Surface(modifier = Modifier
+fun LoadingScreen(modifier: Modifier = Modifier){
+    Surface(modifier = modifier
         .fillMaxSize()
         .background(MaterialTheme.colorScheme.background)) {
         Column(verticalArrangement = Arrangement.Center,

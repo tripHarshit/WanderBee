@@ -11,9 +11,8 @@ plugins {
 
 
 val localProperties = Properties().apply {
-    file("../local.properties").inputStream().use { load(it) }
+    file("${rootDir}/local.properties").inputStream().use { load(it) }
 }
-
 android {
     namespace = "com.example.wanderbee"
     compileSdk = 35
@@ -31,11 +30,12 @@ android {
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProperties["OPENWEATHER_API_KEY"]}\"")
         buildConfigField("String", "GEO_DB_API_KEY", "\"${localProperties["GEO_DB_API_KEY"]}\"")
         buildConfigField("String", "HUGGINGFACE_API_KEY", "\"${localProperties["HUGGINGFACE_API_KEY"]}\"")
+        buildConfigField("String", "PEXELS_API_KEY", "\"${localProperties["PEXELS_API_KEY"]}\"")
     }
 
     buildFeatures {
         compose = true
-        buildConfig = true 
+        buildConfig = true
     }
 
 
@@ -84,6 +84,8 @@ dependencies {
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.6.0")
     implementation("androidx.compose.material3:material3:1.2.0")
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
+
 
     // Hilt
     implementation("com.google.dagger:hilt-android:2.48")
@@ -103,4 +105,17 @@ dependencies {
 
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.5")
+
+    //coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9")
+
+    // Retrofit dependencies
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Coil
+    implementation("io.coil-kt:coil-compose:2.4.0")
 }

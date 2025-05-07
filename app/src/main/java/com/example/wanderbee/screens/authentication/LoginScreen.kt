@@ -54,7 +54,7 @@ fun GetShowSignInScreen(navController: NavController, authViewModel: AuthViewMod
 
     when(uiState){
         is State.Loading-> {
-            LoadingScreen()
+            LoadingScreen(modifier = Modifier)
         }
 
         State.Success -> {

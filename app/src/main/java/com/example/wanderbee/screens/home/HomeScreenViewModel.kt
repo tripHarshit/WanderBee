@@ -1,8 +1,17 @@
 package com.example.wanderbee.screens.home
 
+import android.content.Context
+import android.util.Log
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.wanderbee.models.Destination
+import com.example.wanderbee.data.remote.apiService.JsonResponses
+import com.example.wanderbee.data.remote.models.Destination
+import com.example.wanderbee.data.repository.DefaultPexelsRepository
+import com.example.wanderbee.data.repository.DestinationRepository
+import com.example.wanderbee.data.repository.DestinationsRepository
 import com.example.wanderbee.models.HomeUiState
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -12,59 +21,65 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
     private val firebaseFireStore: FirebaseFirestore,
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val destinationRepository: DestinationRepository,
+    private val defaultPexelsRepository: DefaultPexelsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val _imageUrls = mutableStateMapOf<String, String?>()
+    val imageUrls: Map<String, String?> = _imageUrls
+
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
     private val _name = MutableStateFlow("")
     val name: StateFlow<String> = _name.asStateFlow()
 
     init {
-        loadDummyDestinations()
         fetchUserName()
     }
+    fun fetchUserName() {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-    fun loadDummyDestinations() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            delay(1000)
-            _uiState.value = HomeUiState(
-                isLoading = false,
-                showDestination = listOf(
-                    Destination("Kyoto", "Japan", "A cultural hub with ancient temples."),
-                    Destination(
-                        "Barcelona",
-                        "Spain",
-                        "Vibrant city with beaches and architecture."
-                    ),
-                    Destination(
-                        "Bali",
-                        "Indonesia",
-                        "Island paradise known for its beaches and rice terraces."
-                    )
-                )
-            )
-        }
+        FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(uid)
+            .get()
+            .addOnSuccessListener { document ->
+                val name = document.getString("name")
+                _name.value = name
+                    ?.split(" ")
+                    ?.firstOrNull()
+                    ?.uppercase(Locale.ROOT)
+                    ?: " "
+            }
     }
 
-    fun fetchUserName() {
-        FirebaseAuth.getInstance().currentUser?.uid?.let {
-            FirebaseFirestore
-                .getInstance()
-                .collection("users").document(it).get()
-                .addOnSuccessListener { document ->
-                    if (document != null && document.exists()) {
-                        _name.value = document.getString("name") ?: " "
-                    }
-                }
+    fun loadCityCoverImage(cityName: String) {
+        if (_imageUrls.containsKey(cityName)) return
+
+        viewModelScope.launch {
+            try {
+                val response = defaultPexelsRepository.getPexelsPhotos(cityName)
+                val url = response.photos.shuffled()[1].src.medium
+                _imageUrls[cityName] = url
+            } catch (e: Exception) {
+                _imageUrls[cityName] = null
+            }
         }
     }
 }
+
+
+
 
