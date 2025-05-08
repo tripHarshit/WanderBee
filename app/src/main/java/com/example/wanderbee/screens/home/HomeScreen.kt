@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -128,19 +130,20 @@ fun HomeScreen(navController: NavController,
 
         Column(modifier = Modifier.padding(paddingValues),
             verticalArrangement = Arrangement.Top) {
+
             Text(
                 text = "Hi $name !",
                 fontFamily = FontFamily(Font(R.font.istokweb_bold)),
                 fontSize = 28.sp,
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(start = 16.dp)
+                modifier = Modifier.padding(start = 32.dp)
             )
 
             Text(
                 text = "Let's wander around the world...",
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = .7f),
                 fontFamily = FontFamily(Font(R.font.istokweb_regular)),
-                modifier = Modifier.padding(top = 8.dp, start = 16.dp)
+                modifier = Modifier.padding(top = 8.dp, start = 32.dp)
             )
 
             HomeSearchBar(searchQuery, isExpanded)
@@ -290,7 +293,7 @@ fun HomeTopAppBar(){
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "WanderBee",
-                    fontSize = 28.sp,
+                    fontSize = 24.sp,
                     color = MaterialTheme.colorScheme.secondary,
                     fontFamily = FontFamily(Font(R.font.coustard_regular)))
 
@@ -447,7 +450,7 @@ fun HomeWeatherAndPackingRow(){
     ){
         Box(modifier = Modifier.background(Color.DarkGray,
             RoundedCornerShape(16.dp))
-            .height(150.dp).weight(1f)
+            .height(130.dp).weight(1f)
             .clip(RoundedCornerShape(16.dp))){
             Column(verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -468,7 +471,7 @@ fun HomeWeatherAndPackingRow(){
         Spacer(modifier = Modifier.width(20.dp))
         Box(modifier = Modifier.background(Color.DarkGray,
             RoundedCornerShape(16.dp))
-            .height(150.dp).weight(1f)
+            .height(130.dp).weight(1f)
             .clip(RoundedCornerShape(16.dp))){
             Column(verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -495,8 +498,10 @@ fun BottomNavigationBar(
     onItemSelected: (String) -> Unit = {}
 ) {
     Card(
-        colors = CardDefaults.cardColors(Color.Black),
-        modifier = Modifier.padding(start = 8.dp, end = 8.dp).height(85.dp)
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.background),
+        modifier = Modifier.height(85.dp).fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(0.5.dp, color = Color.White.copy(alpha = .1f))
     ) {
         Row(
             modifier = Modifier.fillMaxWidth()
@@ -517,7 +522,7 @@ fun BottomNavigationBar(
                     imageVector = Icons.Outlined.Home,
                     contentDescription = "Home",
                     modifier = Modifier.size(30.dp).padding(4.dp),
-                    tint = if (selectedItem == "Home") MaterialTheme.colorScheme.primary
+                    tint = if (selectedItem == "Home") MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.onBackground
                 )
 
@@ -525,7 +530,7 @@ fun BottomNavigationBar(
                     text = "Home",
                     fontFamily = FontFamily(Font(R.font.istokweb_regular)),
                     fontSize = 12.sp,
-                    color = if (selectedItem == "Home") MaterialTheme.colorScheme.primary
+                    color = if (selectedItem == "Home") MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -540,10 +545,10 @@ fun BottomNavigationBar(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Chat,
+                    imageVector = Icons.AutoMirrored.Outlined.Chat,
                     contentDescription = "Chat",
                     modifier = Modifier.size(30.dp).padding(4.dp),
-                    tint = if (selectedItem == "Chat") MaterialTheme.colorScheme.primary
+                    tint = if (selectedItem == "Chat") MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.onBackground
                 )
 
@@ -551,7 +556,7 @@ fun BottomNavigationBar(
                     text = "Chat",
                     fontFamily = FontFamily(Font(R.font.istokweb_regular)),
                     fontSize = 12.sp,
-                    color = if (selectedItem == "Chat") MaterialTheme.colorScheme.primary
+                    color = if (selectedItem == "Chat") MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -569,7 +574,7 @@ fun BottomNavigationBar(
                     imageVector = Icons.Outlined.Event,
                     contentDescription = "Event",
                     modifier = Modifier.size(30.dp).padding(4.dp),
-                    tint = if (selectedItem == "Events") MaterialTheme.colorScheme.primary
+                    tint = if (selectedItem == "Events") MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.onBackground
                 )
 
@@ -577,7 +582,7 @@ fun BottomNavigationBar(
                     text = "Events",
                     fontFamily = FontFamily(Font(R.font.istokweb_regular)),
                     fontSize = 12.sp,
-                    color = if (selectedItem == "Events") MaterialTheme.colorScheme.primary
+                    color = if (selectedItem == "Events") MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -595,7 +600,7 @@ fun BottomNavigationBar(
                     imageVector = Icons.Default.FavoriteBorder,
                     contentDescription = "Saved",
                     modifier = Modifier.size(30.dp).padding(4.dp),
-                    tint = if (selectedItem == "Saved") MaterialTheme.colorScheme.primary
+                    tint = if (selectedItem == "Saved") MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.onBackground
                 )
 
@@ -603,7 +608,7 @@ fun BottomNavigationBar(
                     text = "Saved",
                     fontFamily = FontFamily(Font(R.font.istokweb_regular)),
                     fontSize = 12.sp,
-                    color = if (selectedItem == "Saved") MaterialTheme.colorScheme.primary
+                    color = if (selectedItem == "Saved") MaterialTheme.colorScheme.secondary
                     else MaterialTheme.colorScheme.onBackground
                 )
             }

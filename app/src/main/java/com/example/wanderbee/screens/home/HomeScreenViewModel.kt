@@ -26,10 +26,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
-    private val firebaseFireStore: FirebaseFirestore,
-    private val firebaseAuth: FirebaseAuth,
-    private val destinationRepository: DestinationRepository,
-    private val defaultPexelsRepository: DefaultPexelsRepository
+    private val defaultPexelsRepository: DefaultPexelsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -46,7 +43,7 @@ class HomeScreenViewModel @Inject constructor(
     val name: StateFlow<String> = _name.asStateFlow()
 
     init {
-        fetchUserName()
+      fetchUserName()
     }
     fun fetchUserName() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
@@ -71,7 +68,7 @@ class HomeScreenViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val response = defaultPexelsRepository.getPexelsPhotos(cityName)
-                val url = response.photos.shuffled()[1].src.medium
+                val url = response.photos.shuffled().random().src.medium
                 _imageUrls[cityName] = url
             } catch (e: Exception) {
                 _imageUrls[cityName] = null

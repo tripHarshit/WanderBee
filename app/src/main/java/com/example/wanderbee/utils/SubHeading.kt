@@ -15,7 +15,7 @@ import com.example.wanderbee.R
 fun SubHeading(title: String){
     Text(text = title,
         fontFamily = FontFamily(Font(R.font.istokweb_bold)),
-        fontSize = 24.sp,
+        fontSize = 18.sp,
         color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.padding(bottom = 8.dp))
 }

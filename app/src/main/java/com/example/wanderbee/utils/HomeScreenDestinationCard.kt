@@ -47,9 +47,9 @@ fun HomeScreenDestinationsCard(
 ) {
     Box(
         modifier = Modifier
-            .padding(end = 8.dp)
-            .height(150.dp)
-            .width(200.dp)
+           // .padding(end = .dp)
+            .height(110.dp)
+            .width(150.dp)
             .clip(RoundedCornerShape(16.dp))
     ) {
         when {
@@ -109,7 +109,7 @@ fun HomeScreenDestinationsCard(
                     overflow = TextOverflow.Ellipsis,
                     fontFamily = FontFamily(Font(R.font.istokweb_bold)),
                     color = Color.White,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     lineHeight = 15.sp,
                     modifier = Modifier.weight(1f)
                 )

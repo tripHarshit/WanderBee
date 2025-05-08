@@ -118,4 +118,13 @@ dependencies {
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.4.0")
+
+    // Unit testing
+    testImplementation ("junit:junit:4.13.2")
+    testImplementation ("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation ("app.cash.turbine:turbine:1.0.0")
+    testImplementation("io.mockk:mockk:1.13.7") // or your version
+    testImplementation("net.bytebuddy:byte-buddy:1.14.7")
+    testImplementation(kotlin("test"))
+
 }

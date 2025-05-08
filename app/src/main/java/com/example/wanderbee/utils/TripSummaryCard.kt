@@ -39,7 +39,7 @@ fun TripSummaryCard(){
 
     Card(modifier = Modifier
         .fillMaxWidth()
-        .height(160.dp)
+        .height(140.dp)
         .clip(RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(Color.DarkGray),
         elevation = CardDefaults.cardElevation(8.dp)){
