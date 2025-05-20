@@ -1,6 +1,4 @@
-package com.example.wanderbee.data.remote.models
-
-import com.example.wanderbee.MainActivity
+package com.example.wanderbee.data.remote.models.weather
 
 data class WeatherResponse(
     val weather: List<Weather>,

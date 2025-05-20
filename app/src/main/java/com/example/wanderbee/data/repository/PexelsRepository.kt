@@ -2,10 +2,8 @@ package com.example.wanderbee.data.repository
 
 import com.example.wanderbee.BuildConfig
 import com.example.wanderbee.data.remote.apiService.PexelsApiService
-import com.example.wanderbee.data.remote.models.PexelsPhotoResponse
-import com.example.wanderbee.data.remote.models.PexelsVideoResponse
-import retrofit2.Response
-import retrofit2.http.Query
+import com.example.wanderbee.data.remote.models.media.PexelsPhotoResponse
+import com.example.wanderbee.data.remote.models.media.PexelsVideoResponse
 import javax.inject.Inject
 
 interface PexelsRepository {

@@ -3,6 +3,7 @@ package com.example.wanderbee.utils
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,8 +34,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.wanderbee.R
+import com.example.wanderbee.navigation.WanderBeeNavigation
+import com.example.wanderbee.navigation.WanderBeeScreens
 
 
 @RequiresApi(Build.VERSION_CODES.S)
@@ -43,7 +47,8 @@ fun HomeScreenDestinationsCard(
     city: String,
     place: String,
     imageUrl: String?,
-    isLoading: Boolean
+    isLoading: Boolean,
+    navController: NavController
 ) {
     Box(
         modifier = Modifier
@@ -51,6 +56,7 @@ fun HomeScreenDestinationsCard(
             .height(110.dp)
             .width(150.dp)
             .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = {navController.navigate(WanderBeeScreens.InfoDetailsScreen.name)})
     ) {
         when {
             isLoading -> {

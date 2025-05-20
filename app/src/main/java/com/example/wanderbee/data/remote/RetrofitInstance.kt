@@ -42,8 +42,6 @@ object RetrofitInstance {
             .create(GeoDbApiService::class.java)
     }
 
-
-
     private const val HUGGINGFACE_BASE_URL = "https://api-inference.huggingface.co/"
     val huggingFaceApi: HuggingFaceApiService by lazy {
         Retrofit.Builder()

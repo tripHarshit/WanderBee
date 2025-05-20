@@ -3,8 +3,8 @@ package com.example.wanderbee.data.remote.apiService
 import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.example.wanderbee.data.remote.models.Destination
-import com.example.wanderbee.data.remote.models.IndianDestination
+import com.example.wanderbee.data.remote.models.destinations.Destination
+import com.example.wanderbee.data.remote.models.destinations.IndianDestination
 
 class JsonResponses {
 

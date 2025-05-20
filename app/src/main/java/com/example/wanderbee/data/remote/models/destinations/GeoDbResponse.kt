@@ -1,4 +1,4 @@
-package com.example.wanderbee.data.remote.models
+package com.example.wanderbee.data.remote.models.destinations
 
 data class GeoDbResponse(
     val data: List<City>

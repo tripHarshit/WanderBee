@@ -1,4 +1,4 @@
-package com.example.wanderbee.data.remote.models
+package com.example.wanderbee.data.remote.models.media
 
 data class PexelsPhotoResponse(
     val photos: List<PexelsPhoto>

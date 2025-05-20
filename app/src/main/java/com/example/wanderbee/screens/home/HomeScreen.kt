@@ -2,21 +2,19 @@ package com.example.wanderbee.screens.home
 
 import android.annotation.SuppressLint
 import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.scrollable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,13 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Chat
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.outlined.Backpack
-import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Home
@@ -87,20 +80,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.wanderbee.R
 import com.example.wanderbee.data.remote.apiService.JsonResponses
-import com.example.wanderbee.data.remote.models.City
-import com.example.wanderbee.data.remote.models.Destination
-import com.example.wanderbee.data.remote.models.IndianDestination
-import com.example.wanderbee.utils.CustomLinearProgressBar
+import com.example.wanderbee.data.remote.models.destinations.Destination
+import com.example.wanderbee.data.remote.models.destinations.IndianDestination
+import com.example.wanderbee.navigation.WanderBeeScreens
 import com.example.wanderbee.utils.HomeScreenDestinationsCard
 import com.example.wanderbee.utils.SubHeading
 import com.example.wanderbee.utils.TripSummaryCard
-import java.nio.file.WatchEvent
 
 @RequiresApi(Build.VERSION_CODES.S)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun HomeScreen(navController: NavController,
-               homeScreenViewModel: HomeScreenViewModel = hiltViewModel()){
+fun HomeScreen(
+    navController: NavController,
+    homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
+) {
     val popularDestinations = rememberSaveable { mutableStateOf<List<Destination>>(emptyList()) }
     val indianDestinations = rememberSaveable { mutableStateOf<List<IndianDestination>>(emptyList()) }
 
@@ -111,7 +104,6 @@ fun HomeScreen(navController: NavController,
 
         val indianDestinationsResponse = JsonResponses().indianDestinations(context)
         indianDestinations.value = indianDestinationsResponse
-
     }
 
     val name by homeScreenViewModel.name.collectAsState()
@@ -119,100 +111,109 @@ fun HomeScreen(navController: NavController,
     val isExpanded = rememberSaveable { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf("Home") }
 
-    Scaffold(topBar = {
-        HomeTopAppBar()
-    },
+    val scrollState = rememberScrollState()
+    var hasScrolled by remember { mutableStateOf(false) }
+
+    // Permanently hide greeting once scrolled
+    LaunchedEffect(scrollState.value) {
+        if (scrollState.value > 0) hasScrolled = true
+    }
+
+    Scaffold(
+        topBar = { HomeTopAppBar() },
         bottomBar = {
             BottomNavigationBar(
                 selectedItem = selectedTab,
-                onItemSelected = { tab -> selectedTab = tab })
-        }) { paddingValues->
-
-        Column(modifier = Modifier.padding(paddingValues),
-            verticalArrangement = Arrangement.Top) {
-
-            Text(
-                text = "Hi $name !",
-                fontFamily = FontFamily(Font(R.font.istokweb_bold)),
-                fontSize = 28.sp,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(start = 32.dp)
-            )
-
-            Text(
-                text = "Let's wander around the world...",
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = .7f),
-                fontFamily = FontFamily(Font(R.font.istokweb_regular)),
-                modifier = Modifier.padding(top = 8.dp, start = 32.dp)
-            )
-
-            HomeSearchBar(searchQuery, isExpanded)
-
-            Spacer(modifier = Modifier.height(34.dp))
-
-            HomeScreenContent(
-                modifier  = Modifier,
-                popularDestinations,
-                indianDestinations
+                onItemSelected = { tab -> selectedTab = tab },
+                navController = navController
             )
         }
+    ) { paddingValues ->
 
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            verticalArrangement = Arrangement.Top
+        ) {
+            AnimatedVisibility(visible = !hasScrolled) {
+                Column {
+                    Text(
+                        text = "Hi $name !",
+                        fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                        fontSize = 28.sp,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(start = 32.dp)
+                    )
+
+                    Text(
+                        text = "Let's wander around the world...",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = .7f),
+                        fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                        modifier = Modifier.padding(top = 8.dp, start = 32.dp, bottom = 8.dp)
+                    )
+                }
+            }
+
+            // Search Bar
+            HomeSearchBar(searchQuery, isExpanded)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            HomeScreenContent(
+                modifier = Modifier,
+                popularDestinations = popularDestinations,
+                indianDestinations = indianDestinations,
+                scrollState = scrollState,
+                navController = navController
+            )
+        }
     }
 }
+
+
 @RequiresApi(Build.VERSION_CODES.S)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreenContent(modifier: Modifier,
-                     popularDestinations: MutableState<List<Destination>>,
-                      indianDestinations: MutableState<List<IndianDestination>>,
-                      homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
-){
-    val scrollState = rememberScrollState()
-    Surface(modifier = modifier
-        .fillMaxSize()
-        .background(color = MaterialTheme.colorScheme.background)
-        .verticalScroll(scrollState)) {
+fun HomeScreenContent(
+    modifier: Modifier,
+    popularDestinations: MutableState<List<Destination>>,
+    indianDestinations: MutableState<List<IndianDestination>>,
+    scrollState: ScrollState,
+    homeScreenViewModel: HomeScreenViewModel = hiltViewModel(),
+    navController: NavController
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxSize()
+            .background(color = MaterialTheme.colorScheme.background)
+            .verticalScroll(scrollState) // 👈 Use passed scrollState
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
 
-        Column(modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.Top) {
-
-            //AI trip suggestion
             SubHeading(title = "AI Trip Suggestion")
-
             AiTripSuggestionCard()
-
             Spacer(modifier = Modifier.height(34.dp))
 
-            //places near you
             SubHeading(title = "Explore India")
-
-            IndianDestinationCardsRow(indianDestinations,homeScreenViewModel)
-
+            IndianDestinationCardsRow(indianDestinations, homeScreenViewModel, navController)
             Spacer(modifier = Modifier.height(34.dp))
 
-            //upcoming trips
             SubHeading(title = "Upcoming Trips")
-
             TripSummaryCard()
-
             Spacer(modifier = Modifier.height(34.dp))
 
-            //popular destinations
             SubHeading(title = "Popular Destinations")
-
-            PopularDestinationCardsRow(popularDestinations,homeScreenViewModel)
-
+            PopularDestinationCardsRow(popularDestinations, homeScreenViewModel,  navController )
             Spacer(modifier = Modifier.height(34.dp))
 
-            //weather and packing tips
             SubHeading(title = "Weather and Packing Tips")
-
             HomeWeatherAndPackingRow()
-
-
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -332,7 +333,7 @@ fun AiTripSuggestionCard(){
         .fillMaxWidth()
         .height(160.dp)
         .clip(RoundedCornerShape(16.dp)),
-        colors = CardDefaults.cardColors(Color.DarkGray),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(8.dp)) {
         Row (modifier = Modifier
             .fillMaxSize()
@@ -388,7 +389,8 @@ fun AiTripSuggestionCard(){
 @Composable
 fun PopularDestinationCardsRow(
     popularDestinations: MutableState<List<Destination>>,
-    homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
+    homeScreenViewModel: HomeScreenViewModel = hiltViewModel(),
+    navController: NavController
 ){
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
@@ -409,7 +411,8 @@ fun PopularDestinationCardsRow(
                 city = destination.name,
                 place = destination.country,
                 imageUrl = imageUrl,
-                isLoading = isLoading
+                isLoading = isLoading,
+                navController = navController
             )
         }
     }
@@ -419,7 +422,8 @@ fun PopularDestinationCardsRow(
 @Composable
 fun IndianDestinationCardsRow(
     indianDestinations: MutableState<List<IndianDestination>>,
-    homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
+    homeScreenViewModel: HomeScreenViewModel = hiltViewModel(),
+    navController: NavController
 ){
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
@@ -438,7 +442,8 @@ fun IndianDestinationCardsRow(
                 city = destination.name,
                 place = destination.state,
                 imageUrl = imageUrl,
-                isLoading = isLoading
+                isLoading = isLoading,
+                navController = navController
             )
         }
     }
@@ -495,7 +500,8 @@ fun HomeWeatherAndPackingRow(){
 @Composable
 fun BottomNavigationBar(
     selectedItem: String = "Home",
-    onItemSelected: (String) -> Unit = {}
+    onItemSelected: (String) -> Unit = {},
+    navController: NavController
 ) {
     Card(
         colors = CardDefaults.cardColors(MaterialTheme.colorScheme.background),
@@ -514,7 +520,8 @@ fun BottomNavigationBar(
                 modifier = Modifier
                     .weight(1f)
                     .padding(4.dp)
-                    .clickable { onItemSelected("Home") },
+                    .clickable { onItemSelected("Home")
+                               navController.navigate(WanderBeeScreens.HomeScreen.name)},
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -592,7 +599,9 @@ fun BottomNavigationBar(
                 modifier = Modifier
                     .weight(1f)
                     .padding(4.dp)
-                    .clickable { onItemSelected("Saved") },
+                    .clickable { onItemSelected("Saved")
+
+                               },
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {

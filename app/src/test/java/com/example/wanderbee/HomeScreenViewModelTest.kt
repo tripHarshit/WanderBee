@@ -1,16 +1,11 @@
 package com.example.wanderbee
 
-import com.example.wanderbee.data.remote.models.PexelsPhoto
-import com.example.wanderbee.data.remote.models.PexelsPhotoResponse
-import com.example.wanderbee.data.remote.models.PexelsSrc
+import com.example.wanderbee.data.remote.models.media.PexelsPhoto
+import com.example.wanderbee.data.remote.models.media.PexelsPhotoResponse
+import com.example.wanderbee.data.remote.models.media.PexelsSrc
 import com.example.wanderbee.data.repository.DefaultPexelsRepository
 import com.example.wanderbee.screens.home.HomeScreenViewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.firestore.FirebaseFirestore
 import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.impl.annotations.MockK
 import io.mockk.mockk
 import junit.framework.TestCase.assertNotNull
 import junit.framework.TestCase.assertTrue
@@ -22,7 +17,6 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import okhttp3.Dispatcher
 import org.junit.After
 import org.junit.Before
 import org.junit.Test

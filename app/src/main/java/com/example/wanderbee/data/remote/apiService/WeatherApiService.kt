@@ -1,7 +1,7 @@
 package com.example.wanderbee.data.remote.apiService
 
 import com.example.wanderbee.BuildConfig
-import com.example.wanderbee.data.remote.models.WeatherResponse
+import com.example.wanderbee.data.remote.models.weather.WeatherResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
 

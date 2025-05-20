@@ -1,12 +1,11 @@
-package com.example.wanderbee.data.remote.models
-
-import androidx.compose.ui.layout.Placeable
+package com.example.wanderbee.data.remote.models.destinations
 
 data class Destination(
     val name: String,
     val country: String,
     val latitude: Double,
     val longitude: Double,
+
     val currency: String,
     val language: String,
     val region: String,

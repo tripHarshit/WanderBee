@@ -2,9 +2,7 @@ package com.example.wanderbee.data.repository
 
 import com.example.wanderbee.BuildConfig
 import com.example.wanderbee.data.remote.apiService.GeoDbApiService
-import com.example.wanderbee.data.remote.models.City
-import com.example.wanderbee.data.remote.models.GeoDbResponse
-import retrofit2.Response
+import com.example.wanderbee.data.remote.models.destinations.GeoDbResponse
 import javax.inject.Inject
 
 interface DestinationsRepository {

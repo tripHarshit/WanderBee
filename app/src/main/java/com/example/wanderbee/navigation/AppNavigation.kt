@@ -15,6 +15,8 @@ import com.example.wanderbee.screens.authentication.GetShowSignInScreen
 import com.example.wanderbee.screens.authentication.GetShowSignUpScreen
 import com.example.wanderbee.screens.authentication.LoginScreen
 import com.example.wanderbee.screens.authentication.SignUpScreen
+import com.example.wanderbee.screens.details.DetailsViewModel
+import com.example.wanderbee.screens.details.InfoDetailsScreen
 import com.example.wanderbee.screens.home.HomeScreen
 import com.example.wanderbee.screens.home.HomeScreenViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,11 +26,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 fun WanderBeeNavigation(){
     val navController = rememberNavController()
     val homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
+    val detailsViewModel: DetailsViewModel = hiltViewModel()
 
-    NavHost(navController = navController, startDestination = WanderBeeScreens.HomeScreen.name){
+    NavHost(navController = navController, startDestination = WanderBeeScreens.InfoDetailsScreen.name){
         composable(route = WanderBeeScreens.HomeScreen.name) {
            HomeScreen(navController = navController, homeScreenViewModel = homeScreenViewModel)
-            //  HomeScreen()
         }
         composable(route = WanderBeeScreens.SignUpScreen.name) {
             GetShowSignUpScreen(navController = navController)
@@ -38,6 +40,9 @@ fun WanderBeeNavigation(){
         }
         composable(route = WanderBeeScreens.ForgotPassword.name) {
             ForgotPassword(navController = navController)
+        }
+        composable(route = WanderBeeScreens.InfoDetailsScreen.name) {
+            InfoDetailsScreen(navController = navController, detailsViewModel = detailsViewModel)
         }
     }
 }

@@ -1,9 +1,6 @@
 package com.example.wanderbee.data.remote.apiService
 
-import com.example.wanderbee.data.remote.models.WeatherResponse
-import com.example.wanderbee.BuildConfig
-import com.example.wanderbee.data.remote.models.City
-import com.example.wanderbee.data.remote.models.GeoDbResponse
+import com.example.wanderbee.data.remote.models.destinations.GeoDbResponse
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
