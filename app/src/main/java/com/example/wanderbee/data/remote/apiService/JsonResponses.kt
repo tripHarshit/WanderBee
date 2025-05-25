@@ -25,4 +25,47 @@ class JsonResponses {
         val listType = object: TypeToken<List<IndianDestination>>() {}.type
         return Gson().fromJson(jsonString, listType)
     }
+    fun getIndianCityInfo(context: Context, cityName: String): IndianDestination? {
+        val indianDestinations = indianDestinations(context)
+        val cityExists = indianDestinations.any {
+            it.name.equals(cityName, ignoreCase = true)
+        }
+
+        return if (cityExists) {
+            indianDestinations.find {
+                it.name.equals(cityName, ignoreCase = true)
+            }
+        } else {
+            null
+        }
+    }
+
+    fun getPopularCityInfo(context: Context, cityName: String): Destination? {
+        val popularDestinations = popularDestinations(context)
+        val cityExists = popularDestinations.any {
+            it.name.equals(cityName, ignoreCase = true)
+        }
+
+        return if (cityExists) {
+            popularDestinations.find {
+                it.name.equals(cityName, ignoreCase = true)
+            }
+        } else {
+            null
+        }
+    }
+
+    fun getCityInfo(context: Context, cityName: String): Any? {
+        val indianCity = getIndianCityInfo(context, cityName)
+        if (indianCity != null) {
+            return indianCity
+        }
+        val popularCity = getPopularCityInfo(context, cityName)
+        if (popularCity != null) {
+            return popularCity
+        }
+
+        return null
+    }
+
 }

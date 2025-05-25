@@ -1,12 +1,18 @@
 package com.example.wanderbee.screens.details
 
+
 import android.annotation.SuppressLint
+import android.util.Log
+import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,9 +23,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Downloading
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -39,41 +51,89 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.room.util.splitToIntList
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.example.wanderbee.utils.DetailsScreenTopBar
 import com.example.wanderbee.R
+import com.example.wanderbee.data.remote.apiService.JsonResponses
+import com.example.wanderbee.data.remote.models.destinations.Destination
+import com.example.wanderbee.data.remote.models.destinations.IndianDestination
+import com.example.wanderbee.data.remote.models.weather.DailyWeather
+import com.example.wanderbee.navigation.WanderBeeScreens
 import com.example.wanderbee.screens.home.BottomNavigationBar
 import com.example.wanderbee.utils.SubHeading
+import org.intellij.lang.annotations.Language
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun InfoDetailsScreen(navController: NavController,detailsViewModel: DetailsViewModel) {
+fun InfoDetailsScreen(navController: NavController, city: String, dest: String, detailsViewModel: DetailsViewModel) {
 
-    var selectedTab by remember { mutableStateOf("Home") }
+    var selectedTab by remember { mutableStateOf("") }
     var selectedOption by remember { mutableStateOf("Info") }
+    var currency by remember { mutableStateOf<String?>("") }
+    var timezone by remember { mutableStateOf<String?>("") }
+    var tags by remember { mutableStateOf<Any>("") }
+    var language by remember { mutableStateOf<String?>("") }
+    val context = LocalContext.current
+
+    LaunchedEffect(city) {
+        val cityInfo = JsonResponses().getCityInfo(context, city)
+        currency = when (cityInfo) {
+            is IndianDestination -> cityInfo.currency
+            is Destination -> cityInfo.currency
+            null -> "Unknown"
+            else -> "Unknown"
+        }
+        timezone = when (cityInfo) {
+            is IndianDestination -> cityInfo.timezone
+            is Destination -> cityInfo.timezone
+            null -> "Unknown"
+            else -> "Unknown"
+        }
+        tags = when (cityInfo) {
+            is IndianDestination -> cityInfo.tags
+            is Destination -> cityInfo.tags
+            null -> "Unknown"
+            else -> "Unknown"
+        }
+        language = when (cityInfo) {
+            is IndianDestination -> cityInfo.language
+            is Destination -> cityInfo.language
+            null -> "Unknown"
+            else -> "Unknown"
+        }
+    }
 
     Scaffold(
         topBar = { DetailsScreenTopBar(navController = navController) },
-        bottomBar =
-            {
-                BottomNavigationBar(
-                    selectedItem = selectedTab,
-                    onItemSelected = { tab -> selectedTab = tab },
-                    navController = navController
-                )
-            }) {
+        bottomBar = {
+            BottomNavigationBar(
+                selectedItem = selectedTab,
+                onItemSelected = { tab -> selectedTab = tab },
+                navController = navController
+            )
+        }
+    ) { paddingValues ->
         Column(
-            modifier = Modifier.padding(paddingValues = it),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.Start
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
         ) {
             Row(
                 modifier = Modifier
@@ -84,7 +144,7 @@ fun InfoDetailsScreen(navController: NavController,detailsViewModel: DetailsView
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .padding(start = 8.dp)
                 ) {
                     Icon(
@@ -98,13 +158,13 @@ fun InfoDetailsScreen(navController: NavController,detailsViewModel: DetailsView
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
-                    text = "Kyoto, Japan",
+                    text = "$city, $dest",
                     color = MaterialTheme.colorScheme.onBackground,
                     fontFamily = FontFamily(Font(R.font.istokweb_bold)),
-                    fontSize = 35.sp
+                    fontSize = 24.sp
                 )
-
             }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
@@ -115,7 +175,10 @@ fun InfoDetailsScreen(navController: NavController,detailsViewModel: DetailsView
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
-                    onClick = { selectedOption = "Info" },
+                    onClick = {
+                        selectedOption = "Info"
+                        navController.navigate("${WanderBeeScreens.InfoDetailsScreen.name}/$city/$dest")
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .padding(2.dp),
@@ -139,10 +202,13 @@ fun InfoDetailsScreen(navController: NavController,detailsViewModel: DetailsView
                 }
 
                 Button(
-                    onClick = { selectedOption = "Photos" },
+                    onClick = {
+                        selectedOption = "Photos"
+                        navController.navigate("${WanderBeeScreens.PhotosDetailsScreen.name}/$city/$dest")
+                    },
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 2.dp),
+                        .padding(2.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.background),
                     border = BorderStroke(
@@ -163,8 +229,13 @@ fun InfoDetailsScreen(navController: NavController,detailsViewModel: DetailsView
                 }
 
                 Button(
-                    onClick = { selectedOption = "Videos" },
-                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        selectedOption = "Videos"
+                        navController.navigate("${WanderBeeScreens.VideosDetailsScreen.name}/$city/$dest")
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(2.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.background),
                     border = BorderStroke(
@@ -183,30 +254,60 @@ fun InfoDetailsScreen(navController: NavController,detailsViewModel: DetailsView
                         fontFamily = FontFamily(Font(R.font.istokweb_regular))
                     )
                 }
-
             }
-            Spacer(modifier = Modifier.height(10.dp))
-            InfoScreenContent(detailsViewModel = detailsViewModel)
-        }
 
+            Spacer(modifier = Modifier.height(10.dp))
+
+            InfoScreenContent(
+                detailsViewModel = detailsViewModel,
+                modifier = Modifier.weight(1f),
+                city = city,
+                currency = currency ?: "Unknown",
+                timeZone = timezone ?: "Unknown",
+                tags = tags.toString(),
+                language = language ?: "Unknown"
+            )
+
+            Button(
+                onClick = { /* Handle plan itinerary */ },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(MaterialTheme.colorScheme.primary)
+            ) {
+                Text(
+                    text = "Plan Itinerary",
+                    fontSize = 17.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
     }
 }
 
 @Composable
-fun InfoScreenContent(detailsViewModel: DetailsViewModel){
+fun InfoScreenContent(
+    detailsViewModel: DetailsViewModel,
+    modifier: Modifier = Modifier,
+    city: String,
+    currency: String,
+    timeZone: String,
+    tags: String,
+    language: String
+) {
     val scrollState = rememberScrollState()
 
-    // Collect the state
     val descriptionState = detailsViewModel.aiResponseState.collectAsState().value
     val culturalTipsState = detailsViewModel.culturalTipsState.collectAsState().value
 
-    LaunchedEffect(key1 = "description") {
-        detailsViewModel.getDescription("Kyoto")
-        detailsViewModel.getCulturalTips("Kyoto")
+    LaunchedEffect(key1 = city) {
+        detailsViewModel.getDescription(city)
+        detailsViewModel.getCulturalTips(city)
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .padding(16.dp)
             .fillMaxWidth()
             .verticalScroll(scrollState),
@@ -214,7 +315,6 @@ fun InfoScreenContent(detailsViewModel: DetailsViewModel){
     ) {
         when (descriptionState) {
             is AIResponseState.Loading -> {
-                // Show loading indicator
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
@@ -239,7 +339,6 @@ fun InfoScreenContent(detailsViewModel: DetailsViewModel){
                 )
             }
             else -> {
-                // Idle state or initial state
                 Text(
                     text = "Loading description...",
                     fontFamily = FontFamily(Font(R.font.istokweb_regular)),
@@ -249,34 +348,36 @@ fun InfoScreenContent(detailsViewModel: DetailsViewModel){
             }
         }
 
-        // Rest of your content
-        Text(text = "Tags: [romantic, historic, popular]",
+        Text(
+            text = "Tags: $tags",
             fontFamily = FontFamily(Font(R.font.istokweb_regular)),
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
         )
-        Text(text = "Currency: Yen",
+        Text(
+            text = "Currency: $currency",
             fontFamily = FontFamily(Font(R.font.istokweb_regular)),
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
         )
-        Text(text = "Timezone: GMT+9",
+        Text(
+            text = "Timezone: $timeZone",
+            fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+            fontSize = 14.sp,
+            modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
+        )
+        Text(
+            text = "Language: $language",
             fontFamily = FontFamily(Font(R.font.istokweb_regular)),
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
         )
 
-        Text(text = "Language: Japanese",
-            fontFamily = FontFamily(Font(R.font.istokweb_regular)),
-            fontSize = 14.sp,
-            modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
-        )
         Spacer(modifier = Modifier.height(10.dp))
 
         SubHeading(title = "Culture and Highlights")
         when (culturalTipsState) {
             is AIResponseState.Loading -> {
-                // Show loading indicator
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
@@ -311,6 +412,204 @@ fun InfoScreenContent(detailsViewModel: DetailsViewModel){
 
         SubHeading(title = "Weather Conditions")
         Spacer(modifier = Modifier.height(10.dp))
-
+        WeatherForecastCard(cityName = city)
     }
 }
+
+
+
+@Composable
+fun WeatherForecastCard(
+    viewModel: DetailsViewModel = hiltViewModel(),
+    cityName: String
+){
+    LaunchedEffect(cityName) {
+        viewModel.loadWeatherForecast(cityName)
+    }
+    val weatherState = viewModel.weatherState.collectAsState().value
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(10.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
+        border = BorderStroke(width = .5.dp, color = MaterialTheme.colorScheme.secondary)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.Top
+        ) {
+            when (weatherState) {
+                is WeatherUiState.Loading -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.size(40.dp)) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.matchParentSize(),
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column(verticalArrangement = Arrangement.Center) {
+                            Text(
+                                text = "Loading...",
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontSize = 20.sp,
+                                fontFamily = FontFamily(Font(resId = R.font.istokweb_bold)),
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                    }
+                }
+             is WeatherUiState.Success -> {
+                 val todayWeather = weatherState.dailyWeather.firstOrNull { it.isToday }
+                     ?: weatherState.dailyWeather.firstOrNull()
+
+                 todayWeather?.let { today ->
+                     Row(
+                         modifier = Modifier.fillMaxWidth(),
+                         horizontalArrangement = Arrangement.Start,
+                         verticalAlignment = Alignment.CenterVertically
+                     ) {
+                         Box(modifier = Modifier.size(40.dp)) {
+
+                             Image(
+                                 painter = painterResource(R.drawable.d02),
+                                 contentDescription = "Weather Icon",
+                                 modifier = Modifier.size(40.dp),
+                                 contentScale = ContentScale.Crop
+                             )
+
+                         }
+
+                         Spacer(modifier = Modifier.width(10.dp))
+
+                         Column(verticalArrangement = Arrangement.Center) {
+                             Text(
+                                 text = "${today.maxTemp}°C",
+                                 color = MaterialTheme.colorScheme.onBackground,
+                                 fontSize = 20.sp,
+                                 fontFamily = FontFamily(Font(resId = R.font.istokweb_bold)),
+                                 modifier = Modifier.padding(bottom = 2.dp)
+                             )
+                             Text(
+                                 text = today.weatherMain,
+                                 color = MaterialTheme.colorScheme.onBackground,
+                                 fontSize = 20.sp,
+                                 fontFamily = FontFamily(Font(resId = R.font.istokweb_bold)),
+
+                                 )
+
+                         }
+                     }
+
+
+                     Spacer(modifier = Modifier.height(10.dp))
+
+                     Row(
+                         horizontalArrangement = Arrangement.SpaceAround,
+                         modifier = Modifier.fillMaxWidth()
+                     ) {
+                         weatherState.dailyWeather.take(5).forEach { dailyWeather ->
+                             ForecastColumn(dailyWeather)
+                         }
+                     }
+                 }
+             }
+
+                is WeatherUiState.Error -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.size(40.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.ErrorOutline,
+                                contentDescription = "Error Icon",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.matchParentSize()
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column(verticalArrangement = Arrangement.Center) {
+                            Text(
+                                text = "Error",
+                                color = MaterialTheme.colorScheme.error,
+                                fontSize = 20.sp,
+                                fontFamily = FontFamily(Font(resId = R.font.istokweb_bold)),
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ForecastColumn(dailyWeather: DailyWeather) {
+    val iconRes = getWeatherIconResource(dailyWeather.icon)
+
+    Column(
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = dailyWeather.dayLabel,
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 16.sp,
+            fontFamily = FontFamily(Font(resId = R.font.istokweb_regular)),
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        if (iconRes != 0) {
+            Image(
+                painter = painterResource(id = iconRes),
+                contentDescription = "Weather Icon",
+                modifier = Modifier.size(40.dp),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Image(
+                painter = painterResource(R.drawable.baseline_error_24),
+                contentDescription = "Error",
+                modifier = Modifier.size(40.dp),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Text(
+            text = "${dailyWeather.maxTemp}°/${dailyWeather.minTemp}°",
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 16.sp,
+            fontFamily = FontFamily(Font(resId = R.font.istokweb_regular)),
+        )
+    }
+}
+
+
+@Composable
+fun getWeatherIconResource(iconCode: String): Int {
+    // Convert "10n" -> "n10"
+    val drawableName = when (iconCode.length) {
+        3 -> iconCode[2] + iconCode.substring(0, 2)  // 'n' + '10' -> "n10"
+        else -> iconCode // fallback
+    }
+
+    // get resource id by name
+    val context = LocalContext.current
+    return remember(drawableName) {
+        context.resources.getIdentifier(drawableName, "drawable", context.packageName)
+    }
+}
+
+

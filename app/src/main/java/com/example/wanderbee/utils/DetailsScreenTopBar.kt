@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.wanderbee.navigation.WanderBeeScreens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,12 +23,12 @@ fun DetailsScreenTopBar(navController: NavController){
     TopAppBar(title = {
         Row(horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically) {
-            IconButton( onClick = {navController.popBackStack()},
+            IconButton( onClick = {navController.navigate(WanderBeeScreens.HomeScreen.name)},
                 content = {
                     Icon(imageVector = Icons.Outlined.ArrowBackIosNew,
                         contentDescription = "Back Arrow",
                         tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(30.dp))
+                        modifier = Modifier.size(26.dp))
                 })
         }
     })

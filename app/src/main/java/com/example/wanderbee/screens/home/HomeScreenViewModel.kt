@@ -33,24 +33,21 @@ class HomeScreenViewModel @Inject constructor(
     private val _name = MutableStateFlow("")
     val name: StateFlow<String> = _name.asStateFlow()
 
-    init {
-      fetchUserName()
-    }
     fun fetchUserName() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 
-        FirebaseFirestore.getInstance()
-            .collection("users")
-            .document(uid)
-            .get()
-            .addOnSuccessListener { document ->
-                val name = document.getString("name")
-                _name.value = name
-                    ?.split(" ")
-                    ?.firstOrNull()
-                    ?.uppercase(Locale.ROOT)
-                    ?: " "
-            }
+            FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(uid)
+                .get()
+                .addOnSuccessListener { document ->
+                    val name = document.getString("name")
+                    _name.value = name
+                        ?.split(" ")
+                        ?.firstOrNull()
+                        ?.uppercase(Locale.ROOT)
+                        ?: " "
+        }
     }
 
     fun loadCityCoverImage(cityName: String) {

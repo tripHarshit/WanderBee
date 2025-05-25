@@ -6,6 +6,7 @@ data class PexelsPhotoResponse(
 
 data class PexelsVideoResponse(
     val videos: List<PexelsVideo>
+
 )
 
 data class PexelsPhoto(
@@ -15,13 +16,14 @@ data class PexelsPhoto(
 
 data class PexelsSrc(
     val medium: String,
-//    val large: String,
-//    val original: String
+    val large: String,
+   val original: String
 )
 
 data class PexelsVideo(
     val id: Int,
-    val video_files: List<PexelsVideoFile>
+    val video_files: List<PexelsVideoFile>,
+    val image: String
 )
 
 data class PexelsVideoFile(

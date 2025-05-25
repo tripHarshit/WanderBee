@@ -1,10 +1,14 @@
 package com.example.wanderbee.di
 
 import com.example.wanderbee.data.remote.apiService.HuggingFaceApiService
+import com.example.wanderbee.data.remote.apiService.WeatherApiService
 import com.example.wanderbee.data.repository.DefaultHuggingFaceRepository
+import com.example.wanderbee.data.repository.DefaultWeatherRepository
 import com.example.wanderbee.data.repository.HuggingFaceRepository
+import com.example.wanderbee.data.repository.WeatherRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -27,5 +31,11 @@ object AppModule {
     @Singleton
     fun provideHuggingFaceRepository(apiService: HuggingFaceApiService): HuggingFaceRepository {
         return DefaultHuggingFaceRepository(apiService)
+    }
+
+    @Provides
+    @Singleton
+    fun provideWeatherRepository(apiService: WeatherApiService): WeatherRepository{
+        return DefaultWeatherRepository(apiService)
     }
 }

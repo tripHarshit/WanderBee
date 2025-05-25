@@ -12,14 +12,14 @@ interface PexelsApiService {
     suspend fun searchPhotos(
         @Header("Authorization") apiKey: String,
         @Query("query") query: String,
-        @Query("per_page") perPage: Int = 10
+        @Query("per_page") perPage: Int = 30
     ): PexelsPhotoResponse
 
     @GET("videos/search")
     suspend fun searchVideos(
         @Header("Authorization") apiKey: String,
         @Query("query") query: String,
-        @Query("per_page") perPage: Int = 10
+        @Query("per_page") perPage: Int = 20
     ): PexelsVideoResponse
 }
 

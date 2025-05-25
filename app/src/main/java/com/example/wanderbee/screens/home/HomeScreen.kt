@@ -104,9 +104,11 @@ fun HomeScreen(
 
         val indianDestinationsResponse = JsonResponses().indianDestinations(context)
         indianDestinations.value = indianDestinationsResponse
+       homeScreenViewModel.fetchUserName()
     }
 
     val name by homeScreenViewModel.name.collectAsState()
+
     val searchQuery = rememberSaveable { mutableStateOf("") }
     val isExpanded = rememberSaveable { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf("Home") }
@@ -453,7 +455,7 @@ fun IndianDestinationCardsRow(
 fun HomeWeatherAndPackingRow(){
     Row(modifier = Modifier.fillMaxWidth()
     ){
-        Box(modifier = Modifier.background(Color.DarkGray,
+        Box(modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant,
             RoundedCornerShape(16.dp))
             .height(130.dp).weight(1f)
             .clip(RoundedCornerShape(16.dp))){
@@ -474,7 +476,7 @@ fun HomeWeatherAndPackingRow(){
             }
         }
         Spacer(modifier = Modifier.width(20.dp))
-        Box(modifier = Modifier.background(Color.DarkGray,
+        Box(modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant,
             RoundedCornerShape(16.dp))
             .height(130.dp).weight(1f)
             .clip(RoundedCornerShape(16.dp))){
@@ -502,7 +504,7 @@ fun BottomNavigationBar(
     selectedItem: String = "Home",
     onItemSelected: (String) -> Unit = {},
     navController: NavController
-) {
+)  {
     Card(
         colors = CardDefaults.cardColors(MaterialTheme.colorScheme.background),
         modifier = Modifier.height(85.dp).fillMaxWidth(),

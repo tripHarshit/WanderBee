@@ -8,5 +8,6 @@ enum class WanderBeeScreens {
     ForgotPassword,
     InfoDetailsScreen,
     PhotosDetailsScreen,
-    VideoDetailsScreen
+    VideosDetailsScreen,
+    PlanItineraryScreen
 }

@@ -28,4 +28,5 @@ object NetworkModule {
     @Provides
     @Singleton
     fun providePexelsApiService(): PexelsApiService = RetrofitInstance.pexelsApi
+
 }
