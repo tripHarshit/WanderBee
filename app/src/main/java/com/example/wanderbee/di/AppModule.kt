@@ -1,7 +1,12 @@
 package com.example.wanderbee.di
 
+import com.example.wanderbee.data.remote.apiService.AiApiService
 import com.example.wanderbee.data.remote.apiService.HuggingFaceApiService
 import com.example.wanderbee.data.remote.apiService.WeatherApiService
+import com.example.wanderbee.data.repository.AiRepository
+import com.example.wanderbee.data.repository.ChatRepository
+import com.example.wanderbee.data.repository.DefaultAiRepository
+import com.example.wanderbee.data.repository.DefaultChatRepository
 import com.example.wanderbee.data.repository.DefaultHuggingFaceRepository
 import com.example.wanderbee.data.repository.DefaultWeatherRepository
 import com.example.wanderbee.data.repository.HuggingFaceRepository
@@ -37,5 +42,17 @@ object AppModule {
     @Singleton
     fun provideWeatherRepository(apiService: WeatherApiService): WeatherRepository{
         return DefaultWeatherRepository(apiService)
+    }
+
+    @Provides
+    @Singleton
+    fun provideChatRepository(): ChatRepository{
+        return DefaultChatRepository()
+    }
+
+   @Provides
+   @Singleton
+    fun provideAiRepository(apiService: AiApiService): AiRepository {
+        return DefaultAiRepository(apiService)
     }
 }

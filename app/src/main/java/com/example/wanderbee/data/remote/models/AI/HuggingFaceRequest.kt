@@ -1,4 +1,4 @@
-package com.example.wanderbee.data.remote.models.huggingFace
+package com.example.wanderbee.data.remote.models.AI
 
 import com.google.gson.annotations.SerializedName
 

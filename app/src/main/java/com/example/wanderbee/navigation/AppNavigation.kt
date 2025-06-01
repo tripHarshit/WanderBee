@@ -33,7 +33,7 @@ fun WanderBeeNavigation(){
     val homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
     val detailsViewModel: DetailsViewModel = hiltViewModel()
 
-    NavHost(navController = navController, startDestination = WanderBeeScreens.HomeScreen.name){
+    NavHost(navController = navController, startDestination = WanderBeeScreens.PlanItineraryScreen.name){
         composable(route = WanderBeeScreens.HomeScreen.name) {
            HomeScreen(navController = navController, homeScreenViewModel = homeScreenViewModel)
         }
@@ -107,8 +107,21 @@ fun WanderBeeNavigation(){
         )
     }
 
-        composable(route = WanderBeeScreens.PlanItineraryScreen.name) {
-            PlanItineraryScreen()
+//        composable(
+//            route = "${WanderBeeScreens.PlanItineraryScreen.name}/{city}",
+//            arguments = listOf(
+//                navArgument(name = "city") {
+//                    type = NavType.StringType
+//                }
+//            )
+//        ) {backStackEntry->
+//            val city = backStackEntry.arguments?.getString("city") ?: ""
+//           PlanItineraryScreen(
+//               city = city
+//           )
+//        }
+        composable( route = WanderBeeScreens.PlanItineraryScreen.name) {
+            PlanItineraryScreen(navController = navController)
         }
     }
 }

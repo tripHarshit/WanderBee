@@ -1,12 +1,10 @@
 package com.example.wanderbee.data.repository
 
-import com.example.wanderbee.data.remote.models.huggingFace.HuggingFaceResponse
-
 
 import com.example.wanderbee.data.remote.apiService.AITask
 import com.example.wanderbee.data.remote.apiService.HuggingFaceApiService
-import com.example.wanderbee.data.remote.models.huggingFace.GeneratedTextResult
-import com.example.wanderbee.data.remote.models.huggingFace.HuggingFaceRequest
+import com.example.wanderbee.data.remote.models.AI.GeneratedTextResult
+import com.example.wanderbee.data.remote.models.AI.HuggingFaceRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import javax.inject.Inject

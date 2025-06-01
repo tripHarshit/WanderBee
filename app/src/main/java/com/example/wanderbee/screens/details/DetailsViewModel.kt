@@ -23,11 +23,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed class AIResponseState {
-    object Idle : AIResponseState()
-    object Loading : AIResponseState()
-    data class Success(val data: String) : AIResponseState()
-    data class Error(val message: String) : AIResponseState()
+sealed class ItineraryState {
+    object Idle : ItineraryState()
+    object Loading : ItineraryState()
+    data class Success(val data: String) : ItineraryState()
+    data class Error(val message: String) : ItineraryState()
 }
 sealed class PexelsUiState {
     object Loading : PexelsUiState()
@@ -56,11 +56,11 @@ class DetailsViewModel @Inject constructor(
     private val weatherRepository: WeatherRepository
 ) : ViewModel() {
 
-    private val _descriptionState = MutableStateFlow<AIResponseState>(AIResponseState.Idle)
-    val aiResponseState: StateFlow<AIResponseState> = _descriptionState.asStateFlow()
+    private val _descriptionState = MutableStateFlow<ItineraryState>(ItineraryState.Idle)
+    val aiResponseState: StateFlow<ItineraryState> = _descriptionState.asStateFlow()
 
-    private val _culturalTipsState = MutableStateFlow<AIResponseState>(AIResponseState.Idle)
-    val culturalTipsState: StateFlow<AIResponseState> = _culturalTipsState.asStateFlow()
+    private val _culturalTipsState = MutableStateFlow<ItineraryState>(ItineraryState.Idle)
+    val culturalTipsState: StateFlow<ItineraryState> = _culturalTipsState.asStateFlow()
 
     private val _photosState = MutableStateFlow<PexelsUiState>(PexelsUiState.Loading)
     val photosState: StateFlow<PexelsUiState> = _photosState.asStateFlow()
@@ -82,11 +82,11 @@ class DetailsViewModel @Inject constructor(
         )
         val task = AITask.CityInfoTextGeneration
         viewModelScope.launch {
-            _descriptionState.value = AIResponseState.Loading
+            _descriptionState.value = ItineraryState.Loading
 
             // Check InMemory Cache
             descriptionMemoryCache.get(cityName)?.let {
-                _descriptionState.value = AIResponseState.Success(it)
+                _descriptionState.value = ItineraryState.Success(it)
                 Log.e("Caching", "Cached-Data Used: $it")
                 return@launch
             }
@@ -94,7 +94,7 @@ class DetailsViewModel @Inject constructor(
             // Check Database
             cityDescriptionDao.getDescription(cityName)?.let {
                 descriptionMemoryCache.put(cityName, it.description)
-                _descriptionState.value = AIResponseState.Success(it.description)
+                _descriptionState.value = ItineraryState.Success(it.description)
                 Log.e("Caching", "Database Used: ${it.description}")
                 return@launch
             }
@@ -110,9 +110,9 @@ class DetailsViewModel @Inject constructor(
                             CityDescriptionEntity(cityName, cleanedText)
                         )
                         Log.e("Caching", "API Calling Used: $cleanedText")
-                        AIResponseState.Success(cleanedText)
+                        ItineraryState.Success(cleanedText)
                     },
-                    onFailure = { AIResponseState.Error(it.message ?: "Unknown error") }
+                    onFailure = { ItineraryState.Error(it.message ?: "Unknown error") }
                 )
             }
         }
@@ -129,11 +129,11 @@ class DetailsViewModel @Inject constructor(
         )
         val task = AITask.CityInfoTextGeneration
         viewModelScope.launch {
-            _culturalTipsState.value = AIResponseState.Loading
+            _culturalTipsState.value = ItineraryState.Loading
 
             // Check in-memory cache
             tipsMemoryCache.get(cityName)?.let {
-                _culturalTipsState.value = AIResponseState.Success(it)
+                _culturalTipsState.value = ItineraryState.Success(it)
                 Log.e("Caching", "Cached-Data Used: $it")
                 return@launch
             }
@@ -141,7 +141,7 @@ class DetailsViewModel @Inject constructor(
             // Check database
             culturalTipsDao.getTip(cityName)?.let {
                 tipsMemoryCache.put(cityName, it.response)
-                _culturalTipsState.value = AIResponseState.Success(it.response)
+                _culturalTipsState.value = ItineraryState.Success(it.response)
                 Log.e("Caching", "Database Used: ${it.response}")
                 return@launch
             }
@@ -165,9 +165,9 @@ class DetailsViewModel @Inject constructor(
                             CulturalTipsEntity(cityName, bulletPointText)
                         )
                         Log.e("Caching", "API Calling Used: $bulletPointText")
-                        AIResponseState.Success(bulletPointText)
+                        ItineraryState.Success(bulletPointText)
                     },
-                    onFailure = { AIResponseState.Error(it.message ?: "Unknown error") }
+                    onFailure = { ItineraryState.Error(it.message ?: "Unknown error") }
                 )
             }
         }

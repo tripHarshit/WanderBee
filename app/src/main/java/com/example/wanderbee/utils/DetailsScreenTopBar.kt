@@ -33,3 +33,20 @@ fun DetailsScreenTopBar(navController: NavController){
         }
     })
 }
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun OtherScreensTopBar(navController: NavController){
+    TopAppBar(title = {
+        Row(horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically) {
+            IconButton( onClick = {navController.popBackStack()},
+                content = {
+                    Icon(imageVector = Icons.Outlined.ArrowBackIosNew,
+                        contentDescription = "Back Arrow",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(26.dp))
+                })
+        }
+    })
+}

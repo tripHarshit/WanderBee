@@ -2,9 +2,6 @@ package com.example.wanderbee.screens.details
 
 
 import android.annotation.SuppressLint
-import android.util.Log
-import android.view.ViewGroup
-import android.widget.ImageView
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -22,12 +19,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBackIosNew
-import androidx.compose.material.icons.outlined.Cloud
-import androidx.compose.material.icons.outlined.Downloading
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -35,12 +28,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -50,24 +40,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.room.util.splitToIntList
-import coil.compose.AsyncImage
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
 import com.example.wanderbee.utils.DetailsScreenTopBar
 import com.example.wanderbee.R
 import com.example.wanderbee.data.remote.apiService.JsonResponses
@@ -77,7 +59,6 @@ import com.example.wanderbee.data.remote.models.weather.DailyWeather
 import com.example.wanderbee.navigation.WanderBeeScreens
 import com.example.wanderbee.screens.home.BottomNavigationBar
 import com.example.wanderbee.utils.SubHeading
-import org.intellij.lang.annotations.Language
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -269,7 +250,8 @@ fun InfoDetailsScreen(navController: NavController, city: String, dest: String, 
             )
 
             Button(
-                onClick = { /* Handle plan itinerary */ },
+                onClick = {   navController.navigate("${WanderBeeScreens.PlanItineraryScreen.name}/$city")
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
@@ -314,12 +296,12 @@ fun InfoScreenContent(
         verticalArrangement = Arrangement.Top
     ) {
         when (descriptionState) {
-            is AIResponseState.Loading -> {
+            is ItineraryState.Loading -> {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             }
-            is AIResponseState.Success -> {
+            is ItineraryState.Success -> {
                 Text(
                     text = descriptionState.data,
                     color = MaterialTheme.colorScheme.onBackground,
@@ -329,7 +311,7 @@ fun InfoScreenContent(
                     modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
                 )
             }
-            is AIResponseState.Error -> {
+            is ItineraryState.Error -> {
                 Text(
                     text = "Error: ${descriptionState.message}",
                     color = MaterialTheme.colorScheme.error,
@@ -377,12 +359,12 @@ fun InfoScreenContent(
 
         SubHeading(title = "Culture and Highlights")
         when (culturalTipsState) {
-            is AIResponseState.Loading -> {
+            is ItineraryState.Loading -> {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
             }
-            is AIResponseState.Success -> {
+            is ItineraryState.Success -> {
                 Text(
                     text = culturalTipsState.data,
                     overflow = TextOverflow.Ellipsis,
@@ -391,7 +373,7 @@ fun InfoScreenContent(
                     modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
                 )
             }
-            is AIResponseState.Error -> {
+            is ItineraryState.Error -> {
                 Text(
                     text = "Error: ${culturalTipsState.message}",
                     color = MaterialTheme.colorScheme.error,

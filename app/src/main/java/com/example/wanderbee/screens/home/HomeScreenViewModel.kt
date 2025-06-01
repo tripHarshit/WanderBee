@@ -4,7 +4,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wanderbee.data.repository.DefaultPexelsRepository
-import com.example.wanderbee.models.HomeUiState
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,8 +19,6 @@ class HomeScreenViewModel @Inject constructor(
     private val defaultPexelsRepository: DefaultPexelsRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val _imageUrls = mutableStateMapOf<String, String?>()
     val imageUrls: Map<String, String?> = _imageUrls

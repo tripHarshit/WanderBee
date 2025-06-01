@@ -33,6 +33,7 @@ android {
         buildConfigField("String", "GEO_DB_API_KEY", "\"${localProperties["GEO_DB_API_KEY"]}\"")
         buildConfigField("String", "HUGGINGFACE_API_KEY", "\"${localProperties["HUGGINGFACE_API_KEY"]}\"")
         buildConfigField("String", "PEXELS_API_KEY", "\"${localProperties["PEXELS_API_KEY"]}\"")
+        buildConfigField("String", "AI_API_KEY", "\"${localProperties["AI_API_KEY"]}\"")
 
         // Add Room schema location
         ksp {
