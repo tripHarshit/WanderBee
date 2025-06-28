@@ -1,6 +1,5 @@
 package com.example.wanderbee.screens.details
 
-
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -49,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.wanderbee.utils.DetailsScreenTopBar
 import com.example.wanderbee.R
@@ -57,7 +57,7 @@ import com.example.wanderbee.data.remote.models.destinations.Destination
 import com.example.wanderbee.data.remote.models.destinations.IndianDestination
 import com.example.wanderbee.data.remote.models.weather.DailyWeather
 import com.example.wanderbee.navigation.WanderBeeScreens
-import com.example.wanderbee.screens.home.BottomNavigationBar
+import com.example.wanderbee.utils.BottomNavigationBar
 import com.example.wanderbee.utils.SubHeading
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,7 +102,11 @@ fun InfoDetailsScreen(navController: NavController, city: String, dest: String, 
     }
 
     Scaffold(
-        topBar = { DetailsScreenTopBar(navController = navController) },
+        topBar = { DetailsScreenTopBar(navController = navController,
+            isLiked = detailsViewModel.isLiked,
+            onLikeClick = { detailsViewModel.toggleLike() },
+            city = city,
+            dest = dest) },
         bottomBar = {
             BottomNavigationBar(
                 selectedItem = selectedTab,
@@ -116,39 +120,7 @@ fun InfoDetailsScreen(navController: NavController, city: String, dest: String, 
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .padding(start = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = "Location Symbol",
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.matchParentSize()
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Text(
-                    text = "$city, $dest",
-                    color = MaterialTheme.colorScheme.onBackground,
-                    fontFamily = FontFamily(Font(R.font.istokweb_bold)),
-                    fontSize = 24.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
+             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),
@@ -208,7 +180,6 @@ fun InfoDetailsScreen(navController: NavController, city: String, dest: String, 
                         fontFamily = FontFamily(Font(R.font.istokweb_regular))
                     )
                 }
-
                 Button(
                     onClick = {
                         selectedOption = "Videos"
@@ -250,7 +221,7 @@ fun InfoDetailsScreen(navController: NavController, city: String, dest: String, 
             )
 
             Button(
-                onClick = {   navController.navigate("${WanderBeeScreens.PlanItineraryScreen.name}/$city")
+                onClick = {   navController.navigate("${WanderBeeScreens.PlanItineraryScreen.name}/$city/$dest")
                 },
                 modifier = Modifier
                     .fillMaxWidth()

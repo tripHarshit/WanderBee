@@ -1,6 +1,9 @@
 package com.example.wanderbee.screens.details
 
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wanderbee.data.cache.CulturalTipsMemoryCache
@@ -71,11 +74,18 @@ class DetailsViewModel @Inject constructor(
     private val _weatherState = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
     val weatherState: StateFlow<WeatherUiState> = _weatherState.asStateFlow()
 
+    var isLiked by mutableStateOf(false)
+        private set
+
+    fun toggleLike() {
+        isLiked = !isLiked
+    }
+
     fun getDescription(cityName: String) {
         val prompt = "Describe $cityName in a very short paragraph(should not exceed 50 words). Mention only the most important aspects for tourists. It should be informative and should not contain language and currency information"
         val parameters = mapOf(
             "temperature" to 0.7,
-            "max_new_tokens" to 300,
+            "max_new_tokens" to 1000,
             "top_p" to 0.85,
             "do_sample" to true,
             "num_beams" to 3

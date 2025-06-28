@@ -11,3 +11,9 @@ data class AiRequest(
     val messages: List<AiMessage>,
     val temperature: Double
 )
+
+data class ItineraryItem(
+    val time: String,
+    val title: String,
+    val subtitle: String? = null
+)

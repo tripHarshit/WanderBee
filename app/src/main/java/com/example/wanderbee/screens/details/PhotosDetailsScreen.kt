@@ -56,18 +56,23 @@ import coil.request.ImageRequest
 import com.example.wanderbee.R
 import com.example.wanderbee.data.remote.models.media.PexelsPhoto
 import com.example.wanderbee.navigation.WanderBeeScreens
-import com.example.wanderbee.screens.home.BottomNavigationBar
+import com.example.wanderbee.utils.BottomNavigationBar
 import com.example.wanderbee.utils.DetailsScreenTopBar
 import kotlin.random.Random
 
 @Composable
-fun PhotosDetailsScreen(navController: NavController, city: String, dest: String){
+fun PhotosDetailsScreen(navController: NavController, city: String, dest: String,detailsViewModel: DetailsViewModel){
 
         var selectedTab by remember { mutableStateOf("") }
         var selectedOption by remember { mutableStateOf("Photos") }
+    var isLiked by remember { mutableStateOf(false) }
     Log.d("selectedOption", selectedOption)
         Scaffold(
-            topBar = { DetailsScreenTopBar(navController = navController) },
+            topBar = {DetailsScreenTopBar(navController = navController,
+                isLiked = detailsViewModel.isLiked,
+                onLikeClick = { detailsViewModel.toggleLike() },
+                city = city,
+                dest = dest)},
             bottomBar =
                 {
                     BottomNavigationBar(
@@ -81,39 +86,7 @@ fun PhotosDetailsScreen(navController: NavController, city: String, dest: String
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.Start
             ) {
-                Row(
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .padding(start = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.LocationOn,
-                            contentDescription = "Location Symbol",
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.matchParentSize()
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Text(
-                        text = "$city, $dest",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontFamily = FontFamily(Font(R.font.istokweb_bold)),
-                        fontSize = 24.sp
-                    )
-
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
+               Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),

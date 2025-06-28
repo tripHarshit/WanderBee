@@ -12,17 +12,21 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.wanderbee.data.remote.models.AI.ItineraryItem
 import com.example.wanderbee.screens.authentication.ForgotPassword
 import com.example.wanderbee.screens.authentication.GetShowSignInScreen
 import com.example.wanderbee.screens.authentication.GetShowSignUpScreen
 import com.example.wanderbee.screens.authentication.LoginScreen
 import com.example.wanderbee.screens.authentication.SignUpScreen
+import com.example.wanderbee.screens.chat.AllChatsScreen
 import com.example.wanderbee.screens.details.DetailsViewModel
 import com.example.wanderbee.screens.details.InfoDetailsScreen
 import com.example.wanderbee.screens.details.PhotosDetailsScreen
 import com.example.wanderbee.screens.details.VideosDetailsScreen
 import com.example.wanderbee.screens.home.HomeScreen
 import com.example.wanderbee.screens.home.HomeScreenViewModel
+import com.example.wanderbee.screens.itinerary.AiViewModel
+import com.example.wanderbee.screens.itinerary.ItineraryDayScreen
 import com.example.wanderbee.screens.itinerary.PlanItineraryScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 
@@ -32,8 +36,9 @@ fun WanderBeeNavigation(){
     val navController = rememberNavController()
     val homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
     val detailsViewModel: DetailsViewModel = hiltViewModel()
+    val aiViewModel: AiViewModel = hiltViewModel()
 
-    NavHost(navController = navController, startDestination = WanderBeeScreens.PlanItineraryScreen.name){
+    NavHost(navController = navController, startDestination = WanderBeeScreens.AllChatsScreen.name){
         composable(route = WanderBeeScreens.HomeScreen.name) {
            HomeScreen(navController = navController, homeScreenViewModel = homeScreenViewModel)
         }
@@ -83,7 +88,8 @@ fun WanderBeeNavigation(){
             PhotosDetailsScreen(
                 navController = navController,
                 city = city,
-                dest = dest
+                dest = dest,
+                detailsViewModel = detailsViewModel
             )
         }
 
@@ -103,25 +109,50 @@ fun WanderBeeNavigation(){
         VideosDetailsScreen(
             navController = navController,
             city = city,
-            dest = dest
+            dest = dest,
+            detailsViewModel = detailsViewModel
         )
     }
 
-//        composable(
-//            route = "${WanderBeeScreens.PlanItineraryScreen.name}/{city}",
-//            arguments = listOf(
-//                navArgument(name = "city") {
-//                    type = NavType.StringType
-//                }
-//            )
-//        ) {backStackEntry->
-//            val city = backStackEntry.arguments?.getString("city") ?: ""
-//           PlanItineraryScreen(
-//               city = city
-//           )
-//        }
-        composable( route = WanderBeeScreens.PlanItineraryScreen.name) {
-            PlanItineraryScreen(navController = navController)
-        }
+            composable(
+                route = "${WanderBeeScreens.PlanItineraryScreen.name}/{city}/{dest}",
+                arguments = listOf(
+                    navArgument(name = "city") {
+                        type = NavType.StringType
+                    },
+                    navArgument(name = "dest") {
+                        type = NavType.StringType
+                    }
+                )
+            ) {backStackEntry->
+                val city = backStackEntry.arguments?.getString("city") ?: ""
+                val dest = backStackEntry.arguments?.getString("dest") ?: ""
+               PlanItineraryScreen(
+                   city = city,
+                   dest = dest,
+                   navController = navController
+               )
+            }
+            composable("${WanderBeeScreens.ItineraryDayScreen.name}/{dayIndex}/{city}/{dest}",
+                arguments = listOf(
+                    navArgument(name = "dayIndex") {
+                        type = NavType.IntType
+                    },
+                    navArgument(name = "city"){
+                        type = NavType.StringType
+                    },
+                    navArgument(name = "dest"){
+                        type = NavType.StringType
+                    })
+            ) { backStackEntry ->
+                val dayIndex = backStackEntry.arguments?.getInt("dayIndex") ?: 0
+                val city = backStackEntry.arguments?.getString("city") ?: ""
+                val dest  = backStackEntry.arguments?.getString("dest") ?: ""
+                ItineraryDayScreen(navController = navController, dest = dest, city = city, dayIndex = dayIndex)
+            }
+
+           composable(route = WanderBeeScreens.AllChatsScreen.name) {
+               AllChatsScreen(navController = navController)
+           }
     }
 }

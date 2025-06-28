@@ -128,9 +128,9 @@ class DefaultChatRepository @Inject constructor(
             }
 
             val now = Timestamp.now()
-            val twoYearsMs = 2L * 365 * 24 * 60 * 60 * 1000
+            val sixMonths = 183 * 24 * 60 * 60 * 1000
             val toRemove = joinDates.filter {
-                now.toDate().time - it.value.toDate().time > twoYearsMs
+                now.toDate().time - it.value.toDate().time > sixMonths
             }.keys
 
             if (toRemove.isNotEmpty()) {
