@@ -46,11 +46,15 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideChatRepository(): ChatRepository{
-        return DefaultChatRepository()
+    fun provideChatRepository(
+        firestore: FirebaseFirestore,
+        auth: FirebaseAuth
+    ): ChatRepository {
+        return DefaultChatRepository(firestore, auth)
     }
 
-   @Provides
+
+    @Provides
    @Singleton
     fun provideAiRepository(apiService: AiApiService): AiRepository {
         return DefaultAiRepository(apiService)

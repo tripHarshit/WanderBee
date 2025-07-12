@@ -4,8 +4,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    // Remove kotlin-kapt since we're migrating to KSP
-    // Remove duplicate Hilt plugin
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
     id("com.google.devtools.ksp")

@@ -57,13 +57,18 @@ import com.example.wanderbee.data.remote.models.destinations.Destination
 import com.example.wanderbee.data.remote.models.destinations.IndianDestination
 import com.example.wanderbee.data.remote.models.weather.DailyWeather
 import com.example.wanderbee.navigation.WanderBeeScreens
+import com.example.wanderbee.screens.chat.ChatViewModel
 import com.example.wanderbee.utils.BottomNavigationBar
 import com.example.wanderbee.utils.SubHeading
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun InfoDetailsScreen(navController: NavController, city: String, dest: String, detailsViewModel: DetailsViewModel) {
+fun InfoDetailsScreen(navController: NavController,
+                      city: String,
+                      dest: String,
+                      chatViewModel: ChatViewModel,
+                      detailsViewModel: DetailsViewModel) {
 
     var selectedTab by remember { mutableStateOf("") }
     var selectedOption by remember { mutableStateOf("Info") }
@@ -104,7 +109,8 @@ fun InfoDetailsScreen(navController: NavController, city: String, dest: String, 
     Scaffold(
         topBar = { DetailsScreenTopBar(navController = navController,
             isLiked = detailsViewModel.isLiked,
-            onLikeClick = { detailsViewModel.toggleLike() },
+            onLikeClick = { detailsViewModel.toggleLike()
+                chatViewModel.joinGroupChat(destinationId = "${city}_$dest", destinationName = "${city}_$dest")},
             city = city,
             dest = dest) },
         bottomBar = {

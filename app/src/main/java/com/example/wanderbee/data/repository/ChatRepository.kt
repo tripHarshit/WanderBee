@@ -1,6 +1,8 @@
 package com.example.wanderbee.data.repository
 
+import android.util.Log
 import com.example.wanderbee.data.remote.models.chat.ChatMessage
+import com.example.wanderbee.data.remote.models.chat.ChatPreview
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -10,53 +12,28 @@ import javax.inject.Inject
 
 
 interface ChatRepository {
-    /*
-     * Join or create a destination chat room when itinerary is saved.
-     * Adds the current user to the chat room's participants list and records their join date.
-     */
+
     suspend fun joinDestinationChat(destinationId: String, destinationName: String)
 
-    /*
-     * Remove users who joined a group chat more than 2 years ago.
-     * Cleans up expired participants from the chat room.
-     */
     suspend fun removeExpiredParticipants(destinationId: String)
 
-    /*
-     * Send a message to a group chat.
-     * Adds a new message document to the group's messages subcollection.
-     */
     suspend fun sendGroupMessage(destinationId: String, message: ChatMessage)
 
-    /*
-     * Listen for group chat messages in real-time.
-     * Invokes the callback with the latest list of messages whenever there is a change.
-     * Returns a ListenerRegistration that can be used to remove the listener.
-     */
     fun listenToGroupMessages(destinationId: String, onMessages: (List<ChatMessage>) -> Unit): ListenerRegistration
 
-    /*
-     * Create or get a private chat between two users.
-     * Returns the chat ID for the private chat, creating it if necessary.
-     */
     suspend fun getOrCreatePrivateChat(userId1: String, userId2: String): String
 
-    /*
-     * Send a message to a private chat.
-     * Adds a new message document to the private chat's messages subcollection.
-     */
     suspend fun sendPrivateMessage(chatId: String, message: ChatMessage)
 
-    /*
-     * Listen for private chat messages in real-time.
-     * Invokes the callback with the latest list of messages whenever there is a change.
-     * Returns a ListenerRegistration that can be used to remove the listener.
-     */
     fun listenToPrivateMessages(chatId: String, onMessages: (List<ChatMessage>) -> Unit): ListenerRegistration
+
+    suspend fun getGroupChatPreviews(userId: String): List<ChatPreview>
+
+    suspend fun getPrivateChatPreviews(userId: String): List<ChatPreview>
 }
 
 class DefaultChatRepository @Inject constructor(
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ChatRepository {
 
@@ -65,47 +42,51 @@ class DefaultChatRepository @Inject constructor(
         val chatRoomRef = firestore.collection("chatRooms").document(destinationId)
 
         firestore.runTransaction { transaction ->
+
             val snapshot = transaction.get(chatRoomRef)
-            val participants = (snapshot.get("participants") as? List<*>)
-                ?.filterIsInstance<String>()
-                ?.toMutableList() ?: mutableListOf()
 
-            // Handle participantJoinDates properly
-            val joinDatesMap = snapshot.get("participantJoinDates") as? Map<String, Any>
-            val joinDates = mutableMapOf<String, Timestamp>()
+            val participants = (snapshot.get("participants") as? List<*>)?.filterIsInstance<String>()?.toMutableList() ?: mutableListOf()
 
-            // Convert existing join dates
-            joinDatesMap?.forEach { (key, value) ->
+            // Get joinDates as map string to Firestore Timestamp
+            val joinDatesMap = snapshot.get("participantJoinDates") as? Map<String, Any> ?: emptyMap()
+            val joinDates = mutableMapOf<String, com.google.firebase.Timestamp>()
+
+            joinDatesMap.forEach { (key, value) ->
                 when (value) {
-                    is Timestamp -> joinDates[key] = value
                     is com.google.firebase.Timestamp -> joinDates[key] = value
-                    is java.util.Date -> joinDates[key] = Timestamp(value)
-                    is Long -> joinDates[key] = Timestamp(java.util.Date(value))
+                    is java.util.Date -> joinDates[key] = com.google.firebase.Timestamp(value)
+                    is Long -> joinDates[key] = com.google.firebase.Timestamp(java.util.Date(value))
+                    else -> { /* ignore */ }
                 }
             }
 
             if (!participants.contains(userId)) {
                 participants.add(userId)
-                joinDates[userId] = Timestamp.now()
+                joinDates[userId] = com.google.firebase.Timestamp.now()
             }
 
+            val data = mapOf(
+                "id" to destinationId,
+                "destinationName" to destinationName,
+                "participants" to participants,
+                "participantJoinDates" to joinDates,
+                "createdAt" to com.google.firebase.Timestamp.now()
+            )
+
             if (!snapshot.exists()) {
-                // Create new document
-                transaction.set(chatRoomRef, mapOf(
-                    "id" to destinationId,
-                    "destinationName" to destinationName,
-                    "participants" to participants,
-                    "participantJoinDates" to joinDates,
-                    "createdAt" to Timestamp.now()
-                ))
+                transaction.set(chatRoomRef, data)
+                Log.d("ChatRepository", "Created new chat room for $destinationId with participants: $participants")
             } else {
                 transaction.update(chatRoomRef, mapOf(
                     "participants" to participants,
                     "participantJoinDates" to joinDates
                 ))
+                Log.d("ChatRepository", "Updated chat room $destinationId participants: $participants")
             }
         }.await()
     }
+
+
 
     override suspend fun removeExpiredParticipants(destinationId: String) {
         val chatRoomRef = firestore.collection("chatRooms").document(destinationId)
@@ -113,24 +94,23 @@ class DefaultChatRepository @Inject constructor(
         firestore.runTransaction { transaction ->
             val snapshot = transaction.get(chatRoomRef)
 
-            // Handle participantJoinDates properly
             val joinDatesMap = snapshot.get("participantJoinDates") as? Map<String, Any>
-            val joinDates = mutableMapOf<String, Timestamp>()
+            val joinDates = mutableMapOf<String, com.google.firebase.Timestamp>()
 
-            // Convert existing join dates
+            // Convert to Firebase Timestamp consistently
             joinDatesMap?.forEach { (key, value) ->
                 when (value) {
-                    is Timestamp -> joinDates[key] = value
                     is com.google.firebase.Timestamp -> joinDates[key] = value
-                    is java.util.Date -> joinDates[key] = Timestamp(value)
-                    is Long -> joinDates[key] = Timestamp(java.util.Date(value))
+                    is java.util.Date -> joinDates[key] = com.google.firebase.Timestamp(value)
+                    is Long -> joinDates[key] = com.google.firebase.Timestamp(java.util.Date(value))
                 }
             }
 
-            val now = Timestamp.now()
-            val sixMonths = 183 * 24 * 60 * 60 * 1000
-            val toRemove = joinDates.filter {
-                now.toDate().time - it.value.toDate().time > sixMonths
+            val now = com.google.firebase.Timestamp.now() // Use Firebase Timestamp
+            val sixMonthsInMillis = 183L * 24 * 60 * 60 * 1000
+
+            val toRemove = joinDates.filter { (_, timestamp) ->
+                (now.toDate().time - timestamp.toDate().time) > sixMonthsInMillis
             }.keys
 
             if (toRemove.isNotEmpty()) {
@@ -150,6 +130,7 @@ class DefaultChatRepository @Inject constructor(
             }
         }.await()
     }
+
 
     override suspend fun sendGroupMessage(destinationId: String, message: ChatMessage) {
         firestore.collection("chatRooms")
@@ -213,4 +194,72 @@ class DefaultChatRepository @Inject constructor(
                 onMessages(messages)
             }
     }
+
+    override suspend fun getGroupChatPreviews(userId: String): List<ChatPreview> {
+        val chatRooms = firestore.collection("chatRooms")
+            .whereArrayContains("participants", userId)
+            .get()
+            .await()
+
+        return chatRooms.documents.mapNotNull { doc ->
+            val destinationName = doc.getString("destinationName") ?: return@mapNotNull null
+            val destinationId = doc.getString("id") ?: doc.id
+
+            // Get the latest message from the subcollection
+            val latestMessageQuery = firestore.collection("chatRooms")
+                .document(destinationId)
+                .collection("messages")
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .await()
+
+            val latest = latestMessageQuery.documents.firstOrNull()?.toObject(ChatMessage::class.java)
+            ChatPreview(
+                chatId = destinationId,
+                isGroup = true,
+                name = destinationName,
+                lastMessage = latest?.text ?: "Start chatting!",
+                lastMessageTime = latest?.timestamp?.toDate()?.time ?: 0L,
+                destination = destinationName
+            )
+        }
+    }
+
+    override suspend fun getPrivateChatPreviews(userId: String): List<ChatPreview> {
+        val chats = firestore.collection("privateChats")
+            .whereArrayContains("users", userId)
+            .get()
+            .await()
+
+        return chats.documents.mapNotNull { doc ->
+            val chatId = doc.getString("id") ?: doc.id
+            val users = doc.get("users") as? List<*> ?: return@mapNotNull null
+            val otherUserId = users.filterIsInstance<String>().firstOrNull { it != userId } ?: return@mapNotNull null
+
+            // Get the other user's display name (optional: you could cache this)
+            val userDoc = firestore.collection("users").document(otherUserId).get().await()
+            val otherUserName = userDoc.getString("displayName") ?: "User"
+
+            val latestMessageQuery = firestore.collection("privateChats")
+                .document(chatId)
+                .collection("messages")
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .await()
+
+            val latest = latestMessageQuery.documents.firstOrNull()?.toObject(ChatMessage::class.java)
+
+            ChatPreview(
+                chatId = chatId,
+                isGroup = false,
+                name = otherUserName,
+                lastMessage = latest?.text ?: "Start chatting!",
+                lastMessageTime = latest?.timestamp?.toDate()?.time ?: 0L
+            )
+        }
+    }
+
+
 }

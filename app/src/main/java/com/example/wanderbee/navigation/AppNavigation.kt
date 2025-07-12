@@ -1,23 +1,18 @@
 package com.example.wanderbee.navigation
 
+import com.example.wanderbee.screens.chat.ChatViewModel
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.internal.composableLambda
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHost
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.wanderbee.data.remote.models.AI.ItineraryItem
 import com.example.wanderbee.screens.authentication.ForgotPassword
 import com.example.wanderbee.screens.authentication.GetShowSignInScreen
 import com.example.wanderbee.screens.authentication.GetShowSignUpScreen
-import com.example.wanderbee.screens.authentication.LoginScreen
-import com.example.wanderbee.screens.authentication.SignUpScreen
 import com.example.wanderbee.screens.chat.AllChatsScreen
 import com.example.wanderbee.screens.details.DetailsViewModel
 import com.example.wanderbee.screens.details.InfoDetailsScreen
@@ -28,7 +23,6 @@ import com.example.wanderbee.screens.home.HomeScreenViewModel
 import com.example.wanderbee.screens.itinerary.AiViewModel
 import com.example.wanderbee.screens.itinerary.ItineraryDayScreen
 import com.example.wanderbee.screens.itinerary.PlanItineraryScreen
-import dagger.hilt.android.lifecycle.HiltViewModel
 
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
@@ -37,8 +31,9 @@ fun WanderBeeNavigation(){
     val homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
     val detailsViewModel: DetailsViewModel = hiltViewModel()
     val aiViewModel: AiViewModel = hiltViewModel()
+    val chatViewModel: ChatViewModel = hiltViewModel()
 
-    NavHost(navController = navController, startDestination = WanderBeeScreens.AllChatsScreen.name){
+    NavHost(navController = navController, startDestination = WanderBeeScreens.HomeScreen.name){
         composable(route = WanderBeeScreens.HomeScreen.name) {
            HomeScreen(navController = navController, homeScreenViewModel = homeScreenViewModel)
         }
@@ -68,7 +63,8 @@ fun WanderBeeNavigation(){
                 navController = navController,
                 detailsViewModel = detailsViewModel,
                 city = city,
-                dest = dest
+                dest = dest,
+                chatViewModel = chatViewModel
             )
         }
 
@@ -152,7 +148,7 @@ fun WanderBeeNavigation(){
             }
 
            composable(route = WanderBeeScreens.AllChatsScreen.name) {
-               AllChatsScreen(navController = navController)
+               AllChatsScreen(navController = navController, chatViewModel)
            }
     }
 }
