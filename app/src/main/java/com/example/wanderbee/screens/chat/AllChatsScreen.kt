@@ -19,14 +19,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,9 +66,23 @@ fun AllChatsScreen(
 ) {
     var selectedTab by remember { mutableStateOf("Chat") }
     val chatPreviews by chatViewModel.chatPreviews.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(Unit) {
         chatViewModel.loadAllChats()
+    }
+
+    val filteredChatPreviews = remember(chatPreviews, searchQuery) {
+        if (searchQuery.isEmpty()) {
+            chatPreviews
+        } else {
+            chatPreviews.filter { preview ->
+                preview.name.contains(searchQuery, ignoreCase = true) ||
+                preview.destination?.contains(searchQuery, ignoreCase = true) == true ||
+                preview.lastMessage.contains(searchQuery, ignoreCase = true)
+            }
+        }
     }
 
     Scaffold(
@@ -80,24 +101,125 @@ fun AllChatsScreen(
                 .fillMaxSize()
                 .background(color = MaterialTheme.colorScheme.background)
         ) {
-            val scrollState = rememberScrollState()
-            Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
-                chatPreviews.forEach { preview ->
-                    ChatScreenCard(
-                        dest = preview.destination ?: "",
-                        name = preview.name,
-                        message = preview.lastMessage,
-                        onCardClick = {
-                            if (preview.isGroup) {
-                                navController.navigate("GroupChat/${preview.chatId}/${preview.name}")
-                            } else {
-                                navController.navigate("PrivateChat/${preview.chatId}")
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Search Bar
+                SearchBar(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { searchQuery = it },
+                    onClearSearch = { 
+                        searchQuery = ""
+                        focusManager.clearFocus()
+                    },
+                    modifier = Modifier.padding(16.dp)
+                )
+
+                // Chat List
+                val scrollState = rememberScrollState()
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+                    if (filteredChatPreviews.isEmpty()) {
+                        if (searchQuery.isEmpty()) {
+
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No chats available",
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    fontFamily = FontFamily(Font(R.font.istokweb_regular))
+                                )
+                            }
+                        } else {
+                            // No search results
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No chats found for \"$searchQuery\"",
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    fontFamily = FontFamily(Font(R.font.istokweb_regular))
+                                )
                             }
                         }
-                    )
+                    } else {
+                        filteredChatPreviews.forEach { preview ->
+                            ChatScreenCard(
+                                dest = preview.destination ?: "",
+                                name = preview.name,
+                                message = preview.lastMessage,
+                                onCardClick = {
+                                    if (preview.isGroup) {
+                                        navController.navigate("GroupChat/${preview.chatId}/${preview.name}")
+                                    } else {
+                                        navController.navigate("PrivateChat/${preview.chatId}")
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun SearchBar(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            placeholder = {
+                Text(
+                    text = "Search chats...",
+                    fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = "Search",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = onClearSearch) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Clear search",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            textStyle = androidx.compose.ui.text.TextStyle(
+                fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                fontSize = 16.sp
+            ),
+            shape = RoundedCornerShape(12.dp)
+        )
     }
 }
 
