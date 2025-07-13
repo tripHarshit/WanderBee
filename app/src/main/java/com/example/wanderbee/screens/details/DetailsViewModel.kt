@@ -10,8 +10,10 @@ import com.example.wanderbee.data.cache.CulturalTipsMemoryCache
 import com.example.wanderbee.data.cache.DescriptionMemoryCache
 import com.example.wanderbee.data.local.dao.CityDescriptionDao
 import com.example.wanderbee.data.local.dao.CulturalTipsDao
+import com.example.wanderbee.data.local.dao.SavedDestinationDao
 import com.example.wanderbee.data.local.entity.CityDescriptionEntity
 import com.example.wanderbee.data.local.entity.CulturalTipsEntity
+import com.example.wanderbee.data.local.entity.SavedDestinationEntity
 import com.example.wanderbee.data.remote.apiService.AITask
 import com.example.wanderbee.data.remote.models.media.PexelsPhoto
 import com.example.wanderbee.data.remote.models.media.PexelsVideo
@@ -19,6 +21,7 @@ import com.example.wanderbee.data.remote.models.weather.DailyWeather
 import com.example.wanderbee.data.repository.DefaultHuggingFaceRepository
 import com.example.wanderbee.data.repository.DefaultPexelsRepository
 import com.example.wanderbee.data.repository.WeatherRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,9 +57,11 @@ class DetailsViewModel @Inject constructor(
     private val pexelsRepository: DefaultPexelsRepository,
     private val cityDescriptionDao: CityDescriptionDao,
     private val culturalTipsDao: CulturalTipsDao,
+    private val savedDestinationDao: SavedDestinationDao,
     private val descriptionMemoryCache: DescriptionMemoryCache,
     private val tipsMemoryCache: CulturalTipsMemoryCache,
-    private val weatherRepository: WeatherRepository
+    private val weatherRepository: WeatherRepository,
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ViewModel() {
 
     private val _descriptionState = MutableStateFlow<ItineraryState>(ItineraryState.Idle)
@@ -77,8 +82,49 @@ class DetailsViewModel @Inject constructor(
     var isLiked by mutableStateOf(false)
         private set
 
-    fun toggleLike() {
-        isLiked = !isLiked
+    fun toggleLike(city: String, destination: String) {
+        val userId = auth.currentUser?.uid ?: return
+        val destinationId = "${city}_$destination"
+        
+        viewModelScope.launch {
+            try {
+                val isCurrentlySaved = savedDestinationDao.isDestinationSaved(destinationId, userId)
+                
+                if (isCurrentlySaved) {
+                    // Unsave the destination
+                    savedDestinationDao.unsaveDestination(destinationId, userId)
+                    isLiked = false
+                    Log.d("DetailsViewModel", "Destination unsaved: $destinationId")
+                } else {
+                    // Save the destination
+                    val savedDestination = SavedDestinationEntity(
+                        destinationId = destinationId,
+                        city = city,
+                        destination = destination,
+                        userId = userId
+                    )
+                    savedDestinationDao.saveDestination(savedDestination)
+                    isLiked = true
+                    Log.d("DetailsViewModel", "Destination saved: $destinationId")
+                }
+            } catch (e: Exception) {
+                Log.e("DetailsViewModel", "Error toggling like: ${e.message}")
+            }
+        }
+    }
+
+    fun checkIfSaved(city: String, destination: String) {
+        val userId = auth.currentUser?.uid ?: return
+        val destinationId = "${city}_$destination"
+        
+        viewModelScope.launch {
+            try {
+                isLiked = savedDestinationDao.isDestinationSaved(destinationId, userId)
+                Log.d("DetailsViewModel", "Checked saved status for $destinationId: $isLiked")
+            } catch (e: Exception) {
+                Log.e("DetailsViewModel", "Error checking saved status: ${e.message}")
+            }
+        }
     }
 
     fun getDescription(cityName: String) {
@@ -201,7 +247,6 @@ class DetailsViewModel @Inject constructor(
             try {
                 val response = pexelsRepository.getPexelsVideos(query)
                 _videosState.value = PexelsVideoUiState.Success(response.videos)
-                Log.d("Videos", " Videos Fetched successfully${response.videos}")
             } catch (e: Exception) {
                 _videosState.value = PexelsVideoUiState.Error(e.message ?: "Unknown error")
             }

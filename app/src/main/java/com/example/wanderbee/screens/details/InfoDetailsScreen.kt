@@ -109,7 +109,7 @@ fun InfoDetailsScreen(navController: NavController,
     Scaffold(
         topBar = { DetailsScreenTopBar(navController = navController,
             isLiked = detailsViewModel.isLiked,
-            onLikeClick = { detailsViewModel.toggleLike()
+            onLikeClick = { detailsViewModel.toggleLike(city, dest)
                 chatViewModel.joinGroupChat(destinationId = "${city}_$dest", destinationName = "${city}_$dest")},
             city = city,
             dest = dest) },
@@ -126,6 +126,10 @@ fun InfoDetailsScreen(navController: NavController,
                 .padding(paddingValues)
                 .fillMaxSize()
         ) {
+            // Check if destination is saved when screen loads
+            LaunchedEffect(city, dest) {
+                detailsViewModel.checkIfSaved(city, dest)
+            }
              Row(
                 modifier = Modifier
                     .fillMaxWidth()

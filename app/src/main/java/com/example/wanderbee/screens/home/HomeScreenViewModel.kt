@@ -1,5 +1,6 @@
 package com.example.wanderbee.screens.home
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -30,6 +31,7 @@ class HomeScreenViewModel @Inject constructor(
     private val _name = MutableStateFlow("")
     val name: StateFlow<String> = _name.asStateFlow()
 
+    @SuppressLint("SuspiciousIndentation")
     fun fetchUserName() {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
 

@@ -25,6 +25,7 @@ import com.example.wanderbee.screens.itinerary.ItineraryDayScreen
 import com.example.wanderbee.screens.itinerary.PlanItineraryScreen
 import com.example.wanderbee.screens.chat.ChatScreen
 import com.example.wanderbee.screens.chat.PrivateChatScreen
+import com.example.wanderbee.screens.saved.SavedScreen
 
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
@@ -47,6 +48,9 @@ fun WanderBeeNavigation(){
         }
         composable(route = WanderBeeScreens.ForgotPassword.name) {
             ForgotPassword(navController = navController)
+        }
+        composable(route = WanderBeeScreens.SavedScreen.name) {
+            SavedScreen(navController = navController)
         }
         composable(
             route = "${WanderBeeScreens.InfoDetailsScreen.name}/{city}/{dest}",

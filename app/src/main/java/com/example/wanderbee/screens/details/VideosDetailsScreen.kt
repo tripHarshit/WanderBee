@@ -76,7 +76,7 @@ fun VideosDetailsScreen(navController: NavController, city: String, dest: String
         Scaffold(
             topBar = { DetailsScreenTopBar(navController = navController,
                 isLiked = detailsViewModel.isLiked,
-                onLikeClick = { detailsViewModel.toggleLike() },
+                onLikeClick = { detailsViewModel.toggleLike(city, dest) },
                 city = city,
                 dest = dest) },
             bottomBar =
@@ -92,6 +92,10 @@ fun VideosDetailsScreen(navController: NavController, city: String, dest: String
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.Start
             ) {
+                // Check if destination is saved when screen loads
+                LaunchedEffect(city, dest) {
+                    detailsViewModel.checkIfSaved(city, dest)
+                }
                Row(
                     modifier = Modifier
                         .fillMaxWidth()

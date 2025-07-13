@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.wanderbee.data.local.AppDatabase
 import com.example.wanderbee.data.local.dao.CityDescriptionDao
 import com.example.wanderbee.data.local.dao.CulturalTipsDao
+import com.example.wanderbee.data.local.dao.SavedDestinationDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,7 +24,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "wanderbee_database"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides
@@ -34,5 +35,10 @@ object DatabaseModule {
     @Provides
     fun provideCulturalTipsDao(database: AppDatabase): CulturalTipsDao {
         return database.culturalTipsDao()
+    }
+
+    @Provides
+    fun provideSavedDestinationDao(database: AppDatabase): SavedDestinationDao {
+        return database.savedDestinationDao()
     }
 }

@@ -136,7 +136,7 @@ fun BottomNavigationBar(
                     .weight(1f)
                     .padding(4.dp)
                     .clickable { onItemSelected("Saved")
-
+                        navController.navigate(WanderBeeScreens.SavedScreen.name)
                     },
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
