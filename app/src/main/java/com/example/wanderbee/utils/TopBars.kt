@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.ChatBubble
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Print
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -276,6 +277,55 @@ fun AllChatsScreenTopBar(
                     fontFamily = FontFamily(Font(R.font.istokweb_bold)),
                     fontSize = 24.sp
                 )
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InnerChatScreenTopBar(
+    navController: NavController,
+    heading: String,
+    onSearchClick: (() -> Unit)? = null
+) {
+    TopAppBar(
+        title = {
+            Row(
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { navController.navigate(WanderBeeScreens.AllChatsScreen.name) }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ArrowBackIosNew,
+                        contentDescription = "Back Arrow",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Text(
+                    text = heading,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                    fontSize = 24.sp
+                )
+            }
+        },
+        actions = {
+            onSearchClick?.let { onClick ->
+                IconButton(onClick = onClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = "Search",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
             }
         }
     )

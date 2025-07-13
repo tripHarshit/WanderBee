@@ -23,6 +23,8 @@ import com.example.wanderbee.screens.home.HomeScreenViewModel
 import com.example.wanderbee.screens.itinerary.AiViewModel
 import com.example.wanderbee.screens.itinerary.ItineraryDayScreen
 import com.example.wanderbee.screens.itinerary.PlanItineraryScreen
+import com.example.wanderbee.screens.chat.ChatScreen
+import com.example.wanderbee.screens.chat.PrivateChatScreen
 
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
@@ -33,7 +35,7 @@ fun WanderBeeNavigation(){
     val aiViewModel: AiViewModel = hiltViewModel()
     val chatViewModel: ChatViewModel = hiltViewModel()
 
-    NavHost(navController = navController, startDestination = WanderBeeScreens.HomeScreen.name){
+    NavHost(navController = navController, startDestination = WanderBeeScreens.LoginScreen.name){
         composable(route = WanderBeeScreens.HomeScreen.name) {
            HomeScreen(navController = navController, homeScreenViewModel = homeScreenViewModel)
         }
@@ -150,5 +152,35 @@ fun WanderBeeNavigation(){
            composable(route = WanderBeeScreens.AllChatsScreen.name) {
                AllChatsScreen(navController = navController, chatViewModel)
            }
+
+        composable(
+            route = "GroupChat/{destinationId}/{destinationName}",
+            arguments = listOf(
+                navArgument(name = "destinationId") { type = NavType.StringType },
+                navArgument(name = "destinationName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val destinationId = backStackEntry.arguments?.getString("destinationId") ?: ""
+            val destinationName = backStackEntry.arguments?.getString("destinationName") ?: ""
+            ChatScreen(
+                navController = navController,
+                destinationId = destinationId,
+                destinationName = destinationName,
+                chatViewModel = chatViewModel
+            )
+        }
+        composable(
+            route = "PrivateChat/{chatId}",
+            arguments = listOf(
+                navArgument(name = "chatId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
+            PrivateChatScreen(
+                navController = navController,
+                chatId = chatId,
+                chatViewModel = chatViewModel
+            )
+        }
     }
 }

@@ -30,6 +30,8 @@ interface ChatRepository {
     suspend fun getGroupChatPreviews(userId: String): List<ChatPreview>
 
     suspend fun getPrivateChatPreviews(userId: String): List<ChatPreview>
+
+    suspend fun getUserDetails(userId: String): com.example.wanderbee.data.remote.models.chat.ChatUser
 }
 
 class DefaultChatRepository @Inject constructor(
@@ -239,7 +241,7 @@ class DefaultChatRepository @Inject constructor(
 
             // Get the other user's display name (optional: you could cache this)
             val userDoc = firestore.collection("users").document(otherUserId).get().await()
-            val otherUserName = userDoc.getString("displayName") ?: "User"
+            val otherUserName = userDoc.getString("name") ?: "User"
 
             val latestMessageQuery = firestore.collection("privateChats")
                 .document(chatId)
@@ -259,6 +261,13 @@ class DefaultChatRepository @Inject constructor(
                 lastMessageTime = latest?.timestamp?.toDate()?.time ?: 0L
             )
         }
+    }
+
+    override suspend fun getUserDetails(userId: String): com.example.wanderbee.data.remote.models.chat.ChatUser {
+        val userDoc = firestore.collection("users").document(userId).get().await()
+        val name = userDoc.getString("displayName") ?: userDoc.getString("name") ?: "User"
+        val photoUrl = userDoc.getString("photoUrl")
+        return com.example.wanderbee.data.remote.models.chat.ChatUser(id = userId, name = name, photoUrl = photoUrl)
     }
 
 

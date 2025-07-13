@@ -61,15 +61,25 @@ class ChatViewModel @Inject constructor(
     // Send message to group
     fun sendGroupMessage(destinationId: String, text: String) {
         val user = auth.currentUser ?: return
-        val message = ChatMessage(
-            text = text,
-            senderId = user.uid,
-            senderName = user.displayName ?: "Unknown"
-        )
+        val currentUserId = user.uid
+
         viewModelScope.launch {
-            defaultChatRepository.sendGroupMessage(destinationId, message)
+            try {
+                val currentUserName = defaultChatRepository.getUserDetails(currentUserId).name
+                val message = com.example.wanderbee.data.remote.models.chat.ChatMessage(
+                    text = text,
+                    senderId = currentUserId,
+                    senderName = currentUserName
+                )
+
+                defaultChatRepository.sendGroupMessage(destinationId, message)
+
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error in sendGroupMessage: ${e.message}", e)
+            }
         }
     }
+
 
     // Listen to group messages
     fun listenToGroupMessages(destinationId: String) {
@@ -86,7 +96,7 @@ class ChatViewModel @Inject constructor(
             val message = ChatMessage(
                 text = text,
                 senderId = user.uid,
-                senderName = user.displayName ?: "Unknown"
+                senderName = defaultChatRepository.getUserDetails(otherUserId).name
             )
             defaultChatRepository.sendPrivateMessage(chatId, message)
         }
@@ -101,5 +111,43 @@ class ChatViewModel @Inject constructor(
                 _privateMessages.value = it
             }
         }
+    }
+
+    // Listen to private messages by chatId (for PrivateChatScreen)
+    fun listenToPrivateMessagesByChatId(chatId: String) {
+        defaultChatRepository.listenToPrivateMessages(chatId) {
+            _privateMessages.value = it
+        }
+    }
+
+    // Send private message by chatId (for PrivateChatScreen)
+    fun sendPrivateMessageByChatId(chatId: String, text: String) {
+        val user = auth.currentUser ?: return
+        val currentUserId = user.uid
+
+        viewModelScope.launch {
+            try {
+                val currentUserName = defaultChatRepository.getUserDetails(currentUserId).name
+               val message = com.example.wanderbee.data.remote.models.chat.ChatMessage(
+                    text = text,
+                    senderId = currentUserId,
+                    senderName = currentUserName
+                )
+
+                defaultChatRepository.sendPrivateMessage(chatId, message)
+
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Error in sendPrivateMessageByChatId: ${e.message}", e)
+            }
+        }
+    }
+
+
+    fun getCurrentUserId(): String? = auth.currentUser?.uid
+
+    // Add this suspend function for starting or getting a private chat
+    suspend fun startOrGetPrivateChat(otherUserId: String): String? {
+        val user = auth.currentUser ?: return null
+        return defaultChatRepository.getOrCreatePrivateChat(user.uid, otherUserId)
     }
 }
