@@ -2,6 +2,7 @@ package com.example.wanderbee.screens.chat
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,6 +37,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -46,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -53,9 +56,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.wanderbee.utils.AllChatsScreenTopBar
 import com.example.wanderbee.utils.BottomNavigationBar
 import com.example.wanderbee.R
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.wanderbee.screens.profile.ProfileViewModel
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateMapOf
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -68,6 +77,13 @@ fun AllChatsScreen(
     val chatPreviews by chatViewModel.chatPreviews.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+
+    val profileViewModel: ProfileViewModel = hiltViewModel()
+    val coroutineScope = rememberCoroutineScope()
+
+    // State for profile/city images per chatId
+    val profilePicUrls = remember { mutableStateMapOf<String, String>() }
+    val loadingStates = remember { mutableStateMapOf<String, Boolean>() }
 
     LaunchedEffect(Unit) {
         chatViewModel.loadAllChats()
@@ -106,7 +122,7 @@ fun AllChatsScreen(
                 SearchBar(
                     searchQuery = searchQuery,
                     onSearchQueryChange = { searchQuery = it },
-                    onClearSearch = { 
+                    onClearSearch = {
                         searchQuery = ""
                         focusManager.clearFocus()
                     },
@@ -117,39 +133,61 @@ fun AllChatsScreen(
                 val scrollState = rememberScrollState()
                 Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
                     if (filteredChatPreviews.isEmpty()) {
-                        if (searchQuery.isEmpty()) {
-
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No chats available",
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                    fontFamily = FontFamily(Font(R.font.istokweb_regular))
-                                )
-                            }
-                        } else {
-                            // No search results
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No chats found for \"$searchQuery\"",
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                                    fontFamily = FontFamily(Font(R.font.istokweb_regular))
-                                )
-                            }
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No chats found.", color = MaterialTheme.colorScheme.onBackground)
                         }
                     } else {
                         filteredChatPreviews.forEach { preview ->
+                            val chatId = preview.chatId
+                            val isGroup = preview.isGroup
+                            val destination = preview.destination ?: ""
+                            val name = preview.name
+                            val lastMessage = preview.lastMessage
+                            val lastMessageTime = preview.lastMessageTime
+
+                            val profilePicUrl = profilePicUrls[chatId]
+                            val isLoading = loadingStates[chatId] == true
+                            var loadError by remember(chatId) { mutableStateOf(false) }
+
+                            LaunchedEffect(chatId, isGroup, destination, name) {
+                                if (profilePicUrl == null && !isLoading) {
+                                    loadingStates[chatId] = true
+                                    loadError = false
+                                    if (isGroup) {
+                                        val cityQuery = destination.split("_").firstOrNull() ?: destination
+                                        profileViewModel.loadCityCoverImage(cityQuery) { url ->
+                                            if (url != null) profilePicUrls[chatId] = url
+                                            else loadError = true
+                                            loadingStates[chatId] = false
+                                        }
+                                    } else {
+                                        val currentUserId = chatViewModel.auth.currentUser?.uid
+                                        val otherUserId = getOtherUserIdFromChatId(chatId, currentUserId)
+                                        if (otherUserId != null) {
+                                            coroutineScope.launch {
+                                                val url = profileViewModel.getUserProfilePictureUrl(otherUserId)
+                                                if (url != null) profilePicUrls[chatId] = url
+                                                else loadError = true
+                                                loadingStates[chatId] = false
+                                            }
+                                        } else {
+                                            loadError = true
+                                            loadingStates[chatId] = false
+                                        }
+                                    }
+                                }
+                            }
+
                             ChatScreenCard(
-                                dest = preview.destination ?: "",
-                                name = preview.name,
-                                message = preview.lastMessage,
+                                dest = destination,
+                                name = name,
+                                message = lastMessage,
+                                lastMessageTime = lastMessageTime,
+                                profilePicUrl = profilePicUrl ?: "",
+                                isLoading = isLoading,
+                                loadError = loadError,
                                 onCardClick = {
-                                    if (preview.isGroup) {
+                                    if (isGroup) {
                                         navController.navigate("GroupChat/${preview.chatId}/${preview.name}")
                                     } else {
                                         navController.navigate("PrivateChat/${preview.chatId}")
@@ -231,6 +269,9 @@ fun ChatScreenCard(
     name: String,
     message: String,
     lastMessageTime: Long = 0L,
+    profilePicUrl: String,
+    isLoading: Boolean = false,
+    loadError: Boolean = false,
     onCardClick: () -> Unit = {}
 ) {
     val timeAgo = remember(lastMessageTime) {
@@ -267,12 +308,32 @@ fun ChatScreenCard(
                             shape = CircleShape
                         )
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.background,
-                        modifier = Modifier.matchParentSize()
-                    )
+                    when {
+                        isLoading -> {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(32.dp).align(Alignment.Center)
+                            )
+                        }
+                        loadError || profilePicUrl.isEmpty() -> {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = "Default Profile",
+                                tint = MaterialTheme.colorScheme.background,
+                                modifier = Modifier.size(40.dp).align(Alignment.Center)
+                            )
+                        }
+                        else -> {
+                            AsyncImage(
+                                model = profilePicUrl,
+                                contentDescription = "Profile Picture",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                                onError = { /* Show fallback icon above */ },
+                                onLoading = { /* Optionally show a loading indicator */ }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -356,5 +417,14 @@ fun getRelativeTime(timestamp: Long): String {
         hours < 24 -> "$hours hr ago"
         else -> "$days day${if (days > 1) "s" else ""} ago"
     }
+}
+
+// Helper to extract the other user's id from a chatId (assuming chatId encodes both user ids, or you have a way to get it)
+fun getOtherUserIdFromChatId(chatId: String, currentUserId: String?): String? {
+    // If chatId is a concatenation of user ids, split and return the one that's not currentUserId
+    // Otherwise, you may need to fetch from Firestore or ChatPreview
+    // Placeholder logic:
+    val ids = chatId.split("_")
+    return ids.firstOrNull { it != currentUserId }
 }
 

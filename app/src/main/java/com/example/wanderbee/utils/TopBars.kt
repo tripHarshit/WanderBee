@@ -352,3 +352,38 @@ fun SavedScreenTopBar(
         }
     )
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileScreenTopBar(
+    navController: NavController
+) {
+    TopAppBar(
+        title = {
+            Row(
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { navController.navigate(WanderBeeScreens.HomeScreen.name) }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ArrowBackIosNew,
+                        contentDescription = "Back Arrow",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                Text(
+                    text = "Profile",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                    fontSize = 24.sp
+                )
+            }
+        }
+    )
+}

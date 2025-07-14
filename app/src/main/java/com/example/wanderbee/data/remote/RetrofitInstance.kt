@@ -3,6 +3,7 @@ package com.example.wanderbee.data.remote
 import com.example.wanderbee.data.remote.apiService.AiApiService
 import com.example.wanderbee.data.remote.apiService.GeoDbApiService
 import com.example.wanderbee.data.remote.apiService.HuggingFaceApiService
+import com.example.wanderbee.data.remote.apiService.ImgBBApiService
 import com.example.wanderbee.data.remote.apiService.PexelsApiService
 import com.example.wanderbee.data.remote.apiService.WeatherApiService
 import okhttp3.OkHttpClient
@@ -68,4 +69,15 @@ object RetrofitInstance {
                 .build()
                 .create(AiApiService::class.java)
         }
+
+    private const val IMGBB_BASE_URL = "https://api.imgbb.com/"
+         val imgbbApi: ImgBBApiService by lazy {
+             Retrofit.Builder()
+                 .baseUrl(IMGBB_BASE_URL)
+                 .addConverterFactory(GsonConverterFactory.create())
+                 .build()
+                 .create(ImgBBApiService::class.java)
+         }
+
+
 }

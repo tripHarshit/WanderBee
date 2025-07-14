@@ -12,5 +12,6 @@ enum class WanderBeeScreens {
     PlanItineraryScreen,
     ItineraryDayScreen,
     AllChatsScreen,
-    SavedScreen
+    SavedScreen,
+    ProfileScreen
 };

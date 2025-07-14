@@ -33,4 +33,8 @@ object NetworkModule {
     @Singleton
     fun provideAiApiService(): AiApiService = RetrofitInstance.api
 
+    @Provides
+    @Singleton
+    fun provideImgbbApiService(): ImgBBApiService = RetrofitInstance.imgbbApi
+
 }

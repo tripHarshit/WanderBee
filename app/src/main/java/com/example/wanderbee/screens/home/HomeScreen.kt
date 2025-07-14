@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -88,6 +89,10 @@ import com.example.wanderbee.utils.HomeScreenDestinationsCard
 import com.example.wanderbee.utils.SubHeading
 import com.example.wanderbee.utils.TripSummaryCard
 
+import coil.compose.AsyncImage
+import com.example.wanderbee.screens.profile.ProfileViewModel
+import com.google.firebase.auth.FirebaseAuth
+
 @RequiresApi(Build.VERSION_CODES.S)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
@@ -123,7 +128,7 @@ fun HomeScreen(
     }
 
     Scaffold(
-        topBar = { HomeTopAppBar() },
+        topBar = { HomeTopAppBar(navController) },
         bottomBar = {
             BottomNavigationBar(
                 selectedItem = selectedTab,
@@ -290,7 +295,9 @@ fun HomeSearchBar(searchQuery: MutableState<String>,
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeTopAppBar(){
+fun HomeTopAppBar(navController: NavController) {
+    val profileViewModel: ProfileViewModel = hiltViewModel()
+    val profileData by profileViewModel.profileData.collectAsState()
     TopAppBar(
         title = {
             Row(horizontalArrangement = Arrangement.Start,
@@ -312,16 +319,27 @@ fun HomeTopAppBar(){
                     modifier = Modifier
                         .size(28.dp)
                         .clip(RoundedCornerShape(12.dp))
-                    )
-            }
-            IconButton(onClick = {}) {
-                Icon(imageVector = Icons.Outlined.Person2,
-                    contentDescription = "Notification Icon",
-                    tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(12.dp))
                 )
+            }
+            IconButton(onClick = { navController.navigate(WanderBeeScreens.ProfileScreen.name) }) {
+                if (profileData.profilePictureUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = profileData.profilePictureUrl,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Person2,
+                        contentDescription = "Profile Icon",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.example.wanderbee.data.local.AppDatabase
 import com.example.wanderbee.data.local.dao.CityDescriptionDao
 import com.example.wanderbee.data.local.dao.CulturalTipsDao
+import com.example.wanderbee.data.local.dao.ProfileDao
 import com.example.wanderbee.data.local.dao.SavedDestinationDao
 import dagger.Module
 import dagger.Provides
@@ -40,5 +41,10 @@ object DatabaseModule {
     @Provides
     fun provideSavedDestinationDao(database: AppDatabase): SavedDestinationDao {
         return database.savedDestinationDao()
+    }
+
+    @Provides
+    fun provideProfileDao(database: AppDatabase): ProfileDao {
+        return database.profileDao()
     }
 }

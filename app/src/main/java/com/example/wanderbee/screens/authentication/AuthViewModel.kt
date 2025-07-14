@@ -15,6 +15,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.wanderbee.data.local.dao.ProfileDao
+import com.example.wanderbee.data.repository.ImgBBRepository
+import com.example.wanderbee.screens.profile.ProfileData
+import com.example.wanderbee.screens.profile.toProfileEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 sealed class State {
     object Idle : State()
@@ -26,7 +32,9 @@ sealed class State {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
-    private val firebaseFireStore: FirebaseFirestore
+    private val firebaseFireStore: FirebaseFirestore,
+    private val profileDao: ProfileDao,
+    private val imgBBRepository: ImgBBRepository
 ) : ViewModel() {
 
     private val _loginState = MutableStateFlow<State>(State.Idle)
@@ -107,11 +115,32 @@ class AuthViewModel @Inject constructor(
                         .document(uid)
                         .set(mapOf("name" to firebaseAuth.currentUser?.displayName))
                 }
+                // Sync Google profile to Firestore and Room
+                syncGoogleProfile()
             }
             .addOnFailureListener { exception ->
                 Log.e("AuthViewModel", "Google Sign-In Failed", exception)
                 _loginState.value = State.Error
             }
+    }
+
+    private fun syncGoogleProfile() {
+        val user = firebaseAuth.currentUser ?: return
+        val userId = user.uid
+        CoroutineScope(Dispatchers.IO).launch {
+            val profileData = ProfileData(
+                userId = userId,
+                name = user.displayName ?: "",
+                email = user.email ?: "",
+                profilePictureUrl = user.photoUrl?.toString() ?: "",
+                createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
+            )
+            // Update Firestore
+            firebaseFireStore.collection("users").document(userId).set(profileData)
+            // Update Room
+            profileDao.insertProfile(profileData.toProfileEntity())
+        }
     }
 
     fun sendPasswordResetEmail(email: String) {

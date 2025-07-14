@@ -14,6 +14,6 @@ interface AiApiService {
     @POST("v1/chat/completions")
     suspend fun generate(
         @Header("Authorization") authorization: String,
-        @Body request: AiRequest  // Use specific data class instead of Map
+        @Body request: AiRequest
     ): AiResponse
 }

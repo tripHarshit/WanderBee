@@ -26,6 +26,7 @@ import com.example.wanderbee.screens.itinerary.PlanItineraryScreen
 import com.example.wanderbee.screens.chat.ChatScreen
 import com.example.wanderbee.screens.chat.PrivateChatScreen
 import com.example.wanderbee.screens.saved.SavedScreen
+import com.example.wanderbee.screens.profile.ProfileScreen
 
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
@@ -36,7 +37,7 @@ fun WanderBeeNavigation(){
     val aiViewModel: AiViewModel = hiltViewModel()
     val chatViewModel: ChatViewModel = hiltViewModel()
 
-    NavHost(navController = navController, startDestination = WanderBeeScreens.LoginScreen.name){
+    NavHost(navController = navController, startDestination = WanderBeeScreens.HomeScreen.name){
         composable(route = WanderBeeScreens.HomeScreen.name) {
            HomeScreen(navController = navController, homeScreenViewModel = homeScreenViewModel)
         }
@@ -51,6 +52,9 @@ fun WanderBeeNavigation(){
         }
         composable(route = WanderBeeScreens.SavedScreen.name) {
             SavedScreen(navController = navController)
+        }
+        composable(route = WanderBeeScreens.ProfileScreen.name) {
+            ProfileScreen(navController = navController)
         }
         composable(
             route = "${WanderBeeScreens.InfoDetailsScreen.name}/{city}/{dest}",

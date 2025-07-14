@@ -17,7 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val defaultChatRepository: DefaultChatRepository,
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    internal val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ViewModel() {
 
     private val _groupMessages = MutableStateFlow<List<ChatMessage>>(emptyList())

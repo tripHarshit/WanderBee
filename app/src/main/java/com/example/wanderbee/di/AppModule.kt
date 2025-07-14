@@ -11,6 +11,9 @@ import com.example.wanderbee.data.repository.DefaultHuggingFaceRepository
 import com.example.wanderbee.data.repository.DefaultWeatherRepository
 import com.example.wanderbee.data.repository.HuggingFaceRepository
 import com.example.wanderbee.data.repository.WeatherRepository
+import com.example.wanderbee.data.remote.apiService.ImgBBApiService
+import com.example.wanderbee.data.repository.ImgBBRepository
+import com.example.wanderbee.data.repository.DefaultImgBBRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -53,10 +56,15 @@ object AppModule {
         return DefaultChatRepository(firestore, auth)
     }
 
-
     @Provides
    @Singleton
     fun provideAiRepository(apiService: AiApiService): AiRepository {
         return DefaultAiRepository(apiService)
+    }
+
+    @Provides
+    @Singleton
+    fun provideImgBBRepository(imgBBApiService: ImgBBApiService): ImgBBRepository {
+        return DefaultImgBBRepository(imgBBApiService)
     }
 }
