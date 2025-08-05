@@ -1,13 +1,22 @@
 package com.example.wanderbee.screens.profile
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Geocoder
+import android.location.Location
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wanderbee.data.local.dao.ProfileDao
 import com.example.wanderbee.data.local.entity.ProfileEntity
 import com.example.wanderbee.data.repository.ImgBBRepository
 import com.example.wanderbee.data.repository.DefaultPexelsRepository
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +35,7 @@ class ProfileViewModel @Inject constructor(
     private val imgBBRepository: ImgBBRepository,
     private val profileDao: ProfileDao,
     @ApplicationContext private val context: Context,
-    private val defaultPexelsRepository: DefaultPexelsRepository // <-- Injected
+    private val defaultPexelsRepository: DefaultPexelsRepository
 ) : ViewModel() {
 
     private val _profileData = MutableStateFlow(ProfileData())
@@ -37,6 +46,10 @@ class ProfileViewModel @Inject constructor(
 
     private val _selectedImageUri = MutableStateFlow<Uri?>(null)
     val selectedImageUri: StateFlow<Uri?> = _selectedImageUri.asStateFlow()
+
+    // Location related
+    private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
+    private val geocoder = Geocoder(context)
 
     // City cover image cache for group chats
     private val _cityImageUrls = mutableMapOf<String, String?>()
@@ -240,6 +253,57 @@ class ProfileViewModel @Inject constructor(
         } catch (e: Exception) {
             null
         }
+    }
+
+    fun requestLocationPermission() {
+        viewModelScope.launch {
+            try {
+                _isLoading.value = true
+                
+                // Check if location permission is granted
+                if (ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    getCurrentLocation()
+                } else {
+                    // Permission not granted, this will be handled by the UI layer
+                    // The UI should request permission using rememberLauncherForActivityResult
+                }
+            } catch (e: Exception) {
+                // Handle error
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private suspend fun getCurrentLocation() {
+        try {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                val location: Location? = fusedLocationClient.lastLocation.await()
+                location?.let { loc ->
+                    val addresses = geocoder.getFromLocation(loc.latitude, loc.longitude, 1)
+                    val cityName = addresses?.firstOrNull()?.locality ?: "Unknown Location"
+                    
+                    // Update profile with current location
+                    val updatedProfile = _profileData.value.copy(location = cityName)
+                    updateProfile(updatedProfile)
+                }
+            }
+        } catch (e: Exception) {
+            // Handle error
+        }
+    }
+
+    fun updateProfileWithLocation(location: String) {
+        val updatedProfile = _profileData.value.copy(location = location)
+        updateProfile(updatedProfile)
     }
 }
 

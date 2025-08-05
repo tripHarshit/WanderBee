@@ -14,6 +14,13 @@ interface GeoDbApiService {
         @Query("offset") offset: Int
     ): GeoDbResponse
 
+    @GET("v1/geo/cities")
+    suspend fun searchCities(
+        @Query("namePrefix") namePrefix: String,
+        @Query("limit") limit: Int = 10,
+        @Query("offset") offset: Int = 0,
+        @Query("sort") sort: String = "-population"
+    ): GeoDbResponse
 
     @GET("v1/geo/locations/{latLong}/nearbyCities")
     suspend fun getNearbyCities(

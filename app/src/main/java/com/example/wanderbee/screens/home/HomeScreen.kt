@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.outlined.Backpack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person2
 import androidx.compose.material.icons.outlined.Search
@@ -92,6 +94,9 @@ import com.example.wanderbee.utils.TripSummaryCard
 import coil.compose.AsyncImage
 import com.example.wanderbee.screens.profile.ProfileViewModel
 import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.material.icons.outlined.ArrowBackIosNew
+import androidx.compose.ui.draw.rotate
+import androidx.compose.material3.Divider
 
 @RequiresApi(Build.VERSION_CODES.S)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -165,7 +170,7 @@ fun HomeScreen(
             }
 
             // Search Bar
-            HomeSearchBar(searchQuery, isExpanded)
+            HomeSearchBar(searchQuery, isExpanded, navController, homeScreenViewModel)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -196,7 +201,7 @@ fun HomeScreenContent(
         modifier = modifier
             .fillMaxSize()
             .background(color = MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState) // 👈 Use passed scrollState
+            .verticalScroll(scrollState)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
 
@@ -225,16 +230,76 @@ fun HomeScreenContent(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeSearchBar(searchQuery: MutableState<String>,
-                  isExpanded: MutableState<Boolean>){
+fun HomeSearchBar(
+    searchQuery: MutableState<String>,
+    isExpanded: MutableState<Boolean>,
+    navController: NavController,
+    homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
+) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
+    val searchResults by homeScreenViewModel.searchResults.collectAsState()
+    val isLoading by homeScreenViewModel.isSearchLoading.collectAsState()
+    val error by homeScreenViewModel.error.collectAsState()
+    var showDropdown by remember { mutableStateOf(false) }
+
+    // Log state changes
+    LaunchedEffect(searchQuery.value) {
+        android.util.Log.d("HomeSearchBar", "Search query changed to: '${searchQuery.value}'")
+    }
+    
+    LaunchedEffect(searchResults) {
+        android.util.Log.d("HomeSearchBar", "Search results updated: ${searchResults.size} results")
+        searchResults.forEach { city ->
+            android.util.Log.d("HomeSearchBar", "Result: ${city.name}, ${city.country}")
+        }
+        // Show dropdown when we have results
+        if (searchResults.isNotEmpty()) {
+            showDropdown = true
+            android.util.Log.d("HomeSearchBar", "Setting showDropdown to true because we have ${searchResults.size} results")
+        }
+    }
+    
+    LaunchedEffect(isLoading) {
+        android.util.Log.d("HomeSearchBar", "Loading state changed: $isLoading")
+        // Show dropdown when loading
+        if (isLoading) {
+            showDropdown = true
+            android.util.Log.d("HomeSearchBar", "Setting showDropdown to true because loading")
+        }
+    }
+    
+    LaunchedEffect(error) {
+        if (error != null) {
+            android.util.Log.e("HomeSearchBar", "Search error: $error")
+            // Show dropdown when there's an error
+            showDropdown = true
+            android.util.Log.d("HomeSearchBar", "Setting showDropdown to true because of error")
+        }
+    }
+
+    // Clear search state when navigating back to home
+    LaunchedEffect(Unit) {
+        android.util.Log.d("HomeSearchBar", "HomeSearchBar composable launched, clearing search state")
+        homeScreenViewModel.clearSearchResults()
+        showDropdown = false
+        searchQuery.value = ""
+    }
+
     SearchBar(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp),
-        expanded = isExpanded.value,
-        onExpandedChange = { isExpanded.value = it },
+        expanded = isExpanded.value || showDropdown, // Keep expanded when dropdown is shown
+        onExpandedChange = { 
+            isExpanded.value = it
+            if (!it) {
+                showDropdown = false // Close dropdown when search bar is collapsed
+                homeScreenViewModel.clearSearchResults() // Clear search results when collapsed
+                searchQuery.value = "" // Clear search query when collapsed
+            }
+            android.util.Log.d("HomeSearchBar", "Search bar expanded: $it")
+        },
         shape = RoundedCornerShape(16.dp),
         shadowElevation = 4.dp,
         colors = SearchBarDefaults.colors(containerColor = MaterialTheme.colorScheme.background),
@@ -243,13 +308,25 @@ fun HomeSearchBar(searchQuery: MutableState<String>,
         inputField = {
             OutlinedTextField(
                 value = searchQuery.value,
-                onValueChange = { searchQuery.value = it},
+                onValueChange = {
+                    searchQuery.value = it
+                    android.util.Log.d("HomeSearchBar", "Text changed to: '$it'")
+                    if (it.isNotBlank()) {
+                        android.util.Log.d("HomeSearchBar", "Calling searchCities with: '$it'")
+                        homeScreenViewModel.searchCities(it)
+                        showDropdown = true
+                    } else {
+                        android.util.Log.d("HomeSearchBar", "Clearing search results")
+                        showDropdown = false
+                        homeScreenViewModel.clearSearchResults()
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Transparent),
                 placeholder = {
                     Text(
-                        text = "Search Destinations (e.g. Paris)",
+                        text = "Search Destinations (min 2 characters)",
                         color = MaterialTheme.colorScheme.outline,
                         fontFamily = FontFamily(Font(R.font.istokweb_bold)),
                         fontSize = 14.sp
@@ -274,9 +351,15 @@ fun HomeSearchBar(searchQuery: MutableState<String>,
                 },
                 trailingIcon = {
                     if (searchQuery.value.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery.value = ""
-                        keyboardController?.hide()
-                        focusManager.clearFocus()}) {
+                        IconButton(onClick = {
+                            android.util.Log.d("HomeSearchBar", "Clear button clicked")
+                            searchQuery.value = ""
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                            showDropdown = false
+                            homeScreenViewModel.clearSearchResults()
+                            isExpanded.value = false // Also collapse the search bar
+                        }) {
                             Icon(
                                 imageVector = Icons.Outlined.Close,
                                 contentDescription = "Clear",
@@ -288,9 +371,282 @@ fun HomeSearchBar(searchQuery: MutableState<String>,
             )
         }
     ) {
-        // Dropdown content goes here (e.g., suggestions)
+        android.util.Log.d("HomeSearchBar", "Dropdown content - showDropdown: $showDropdown, results: ${searchResults.size}, loading: $isLoading, error: $error")
+        
+        // Show dropdown if we have results, are loading, have an error, or have a query
+        if (showDropdown && (searchResults.isNotEmpty() || isLoading || error != null || searchQuery.value.isNotBlank())) {
+            android.util.Log.d("HomeSearchBar", "Showing dropdown with ${searchResults.size} results")
+            
+            // Beautiful animated dropdown
+            androidx.compose.animation.AnimatedVisibility(
+                visible = true,
+                enter = androidx.compose.animation.fadeIn(
+                    animationSpec = androidx.compose.animation.core.tween(200)
+                ) + androidx.compose.animation.slideInVertically(
+                    animationSpec = androidx.compose.animation.core.tween(200),
+                    initialOffsetY = { -it / 2 }
+                ),
+                exit = androidx.compose.animation.fadeOut(
+                    animationSpec = androidx.compose.animation.core.tween(150)
+                ) + androidx.compose.animation.slideOutVertically(
+                    animationSpec = androidx.compose.animation.core.tween(150),
+                    targetOffsetY = { -it / 2 }
+                )
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    ),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = 12.dp,
+                        pressedElevation = 8.dp
+                    )
+                ) {
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Searching destinations...",
+                                    fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    } else if (error != null) {
+                        // Beautiful error state
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = "Error",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "Search Error",
+                                    fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = error ?: "Unknown error occurred",
+                                    fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    } else if (searchResults.isNotEmpty()) {
+                        Column {
+                            // Beautiful header with results count
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                                        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                                    )
+                                    .padding(16.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Search,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "${searchResults.size} destination(s) found",
+                                        fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                            }
+                            
+                            // Scrollable search results
+                            androidx.compose.foundation.lazy.LazyColumn(
+                                modifier = Modifier.heightIn(max = 300.dp), // Limit height and make scrollable
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+                            ) {
+                                items(searchResults.size) { index ->
+                                    val city = searchResults[index]
+                                    androidx.compose.animation.AnimatedVisibility(
+                                        visible = true,
+                                        enter = androidx.compose.animation.fadeIn(
+                                            animationSpec = androidx.compose.animation.core.tween(
+                                                durationMillis = 200 + (index * 50)
+                                            )
+                                        ) + androidx.compose.animation.slideInHorizontally(
+                                            animationSpec = androidx.compose.animation.core.tween(
+                                                durationMillis = 200 + (index * 50)
+                                            ),
+                                            initialOffsetX = { it / 2 }
+                                        )
+                                    ) {
+                                        Column {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        android.util.Log.d("HomeSearchBar", "City selected: ${city.name}, ${city.country}")
+                                                        showDropdown = false
+                                                        searchQuery.value = ""
+                                                        keyboardController?.hide()
+                                                        focusManager.clearFocus()
+                                                        homeScreenViewModel.clearSearchResults() // Clear search state
+                                                        navController.navigate("${WanderBeeScreens.InfoDetailsScreen.name}/${city.name}/${city.country}")
+                                                    }
+                                                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                                                    .background(
+                                                        if (index % 2 == 0) 
+                                                            MaterialTheme.colorScheme.surface 
+                                                        else 
+                                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                                                    ),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Beautiful location icon
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(48.dp)
+                                                        .clip(CircleShape)
+                                                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.LocationOn,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.secondary,
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                }
+                                                
+                                                Spacer(modifier = Modifier.width(16.dp))
+                                                
+                                                // City information
+                                                Column(
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(
+                                                        text = city.name,
+                                                        fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                                                        fontSize = 16.sp,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Text(
+                                                        text = city.country,
+                                                        fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                                                        fontSize = 14.sp,
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                                    )
+                                                }
+                                                
+                                                // Arrow icon
+                                                Icon(
+                                                    imageVector = Icons.Outlined.ArrowBackIosNew,
+                                                    contentDescription = "View details",
+                                                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .rotate(180f)
+                                                )
+                                            }
+                                            
+                                            // Divider between items (except for last item)
+                                            if (index < searchResults.size - 1) {
+                                                Divider(
+                                                    modifier = Modifier.padding(horizontal = 20.dp),
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                                                    thickness = 1.dp
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if (searchQuery.value.isNotBlank()) {
+                        // Beautiful "no results" state
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(60.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Search,
+                                        contentDescription = "No results",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "No destinations found",
+                                    fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Try searching for a different location",
+                                    fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

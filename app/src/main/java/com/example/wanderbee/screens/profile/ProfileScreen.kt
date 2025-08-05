@@ -40,6 +40,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -72,6 +74,7 @@ import com.example.wanderbee.utils.BottomNavigationBar
 import com.example.wanderbee.utils.ProfileScreenTopBar
 import com.example.wanderbee.utils.rememberImagePicker
 import com.example.wanderbee.navigation.WanderBeeScreens
+import android.Manifest
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -87,6 +90,15 @@ fun ProfileScreen(
     // Image picker
     val imagePicker = rememberImagePicker { uri ->
         profileViewModel.uploadProfileImage(uri)
+    }
+
+    // Location permission launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            profileViewModel.requestLocationPermission()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -135,10 +147,19 @@ fun ProfileScreen(
                     )
 
                     // Personal Information Section
-                    PersonalInfoSection(profileData = profileData)
+                    PersonalInfoSection(
+                        profileData = profileData,
+                        profileViewModel = profileViewModel,
+                        onLocationPermissionRequest = {
+                            locationPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                    )
 
                     // Travel Preferences Section
-                    TravelPreferencesSection(profileData = profileData)
+                    TravelPreferencesSection(
+                        profileData = profileData,
+                        profileViewModel = profileViewModel
+                    )
 
                     // Account Actions Section
                     AccountActionsSection(
@@ -263,7 +284,11 @@ fun ProfileHeaderSection(
 }
 
 @Composable
-fun PersonalInfoSection(profileData: ProfileData) {
+fun PersonalInfoSection(
+    profileData: ProfileData,
+    profileViewModel: ProfileViewModel,
+    onLocationPermissionRequest: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
@@ -281,35 +306,51 @@ fun PersonalInfoSection(profileData: ProfileData) {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            InfoRow(
+            EditableInfoRow(
                 icon = Icons.Outlined.Person,
                 label = "Full Name",
-                value = profileData.name.ifEmpty { "Not set" }
+                value = profileData.name.ifEmpty { "Not set" },
+                onEdit = { newValue ->
+                    profileViewModel.updateProfile(profileData.copy(name = newValue))
+                }
             )
 
-            InfoRow(
+            EditableInfoRow(
                 icon = Icons.Outlined.Email,
                 label = "Email",
-                value = profileData.email.ifEmpty { "Not set" }
+                value = profileData.email.ifEmpty { "Not set" },
+                onEdit = { newValue ->
+                    profileViewModel.updateProfile(profileData.copy(email = newValue))
+                }
             )
 
-            InfoRow(
+            EditableInfoRow(
                 icon = Icons.Outlined.Phone,
                 label = "Phone",
-                value = profileData.phone.ifEmpty { "Not set" }
+                value = profileData.phone.ifEmpty { "Not set" },
+                onEdit = { newValue ->
+                    profileViewModel.updateProfile(profileData.copy(phone = newValue))
+                }
             )
 
-            InfoRow(
+            EditableInfoRow(
                 icon = Icons.Outlined.LocationOn,
                 label = "Location",
-                value = profileData.location.ifEmpty { "Not set" }
+                value = profileData.location.ifEmpty { "Not set" },
+                onEdit = { newValue ->
+                    profileViewModel.updateProfile(profileData.copy(location = newValue))
+                },
+                onLocationRequest = onLocationPermissionRequest
             )
         }
     }
 }
 
 @Composable
-fun TravelPreferencesSection(profileData: ProfileData) {
+fun TravelPreferencesSection(
+    profileData: ProfileData,
+    profileViewModel: ProfileViewModel
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
@@ -327,28 +368,22 @@ fun TravelPreferencesSection(profileData: ProfileData) {
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            InfoRow(
+            TravelStyleDropdownRow(
                 icon = Icons.Outlined.TravelExplore,
                 label = "Preferred Travel Style",
-                value = profileData.travelStyle.ifEmpty { "Not set" }
+                value = profileData.travelStyle.ifEmpty { "Not set" },
+                onSelection = { newValue ->
+                    profileViewModel.updateProfile(profileData.copy(travelStyle = newValue))
+                }
             )
 
-            InfoRow(
+            EditableInfoRow(
                 icon = Icons.Outlined.Star,
                 label = "Favorite Destinations",
-                value = profileData.favoriteDestinations.ifEmpty { "Not set" }
-            )
-
-            InfoRow(
-                icon = Icons.Outlined.Person,
-                label = "Travel Companions",
-                value = profileData.travelCompanions.ifEmpty { "Not set" }
-            )
-
-            InfoRow(
-                icon = Icons.Outlined.Settings,
-                label = "Budget Range",
-                value = profileData.budgetRange.ifEmpty { "Not set" }
+                value = profileData.favoriteDestinations.ifEmpty { "Not set" },
+                onEdit = { newValue ->
+                    profileViewModel.updateProfile(profileData.copy(favoriteDestinations = newValue))
+                }
             )
         }
     }
@@ -399,12 +434,19 @@ fun AccountActionsSection(onLogout: () -> Unit) {
     }
 }
 
+
+
 @Composable
-fun InfoRow(
+fun EditableInfoRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
-    value: String
+    value: String,
+    onEdit: (String) -> Unit,
+    onLocationRequest: (() -> Unit)? = null
 ) {
+    var isEditing by remember { mutableStateOf(false) }
+    var editValue by remember { mutableStateOf(value) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -427,12 +469,172 @@ fun InfoRow(
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
-            Text(
-                text = value,
-                fontFamily = FontFamily(Font(R.font.istokweb_bold)),
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (isEditing) {
+                androidx.compose.material3.OutlinedTextField(
+                    value = editValue,
+                    onValueChange = { editValue = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.secondary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                    )
+                )
+            } else {
+                Text(
+                    text = value,
+                    fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
+        Spacer(modifier = Modifier.width(8.dp))
+        
+        if (isEditing) {
+            Row {
+                IconButton(
+                    onClick = {
+                        onEdit(editValue)
+                        isEditing = false
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Save",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        editValue = value
+                        isEditing = false
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ArrowBackIosNew,
+                        contentDescription = "Cancel",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        } else {
+            Row {
+                IconButton(
+                    onClick = { isEditing = true }
+                ) {
+                    if (onLocationRequest != null && label != "Location") {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = "Edit",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                if (onLocationRequest != null && label == "Location") {
+                    IconButton(
+                        onClick = onLocationRequest
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.LocationOn,
+                            contentDescription = "Get Current Location",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TravelStyleDropdownRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    onSelection: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val travelStyles = listOf(
+        "Adventure",
+        "Relaxation", 
+        "Cultural",
+        "Budget",
+        "Luxury",
+        "Backpacking",
+        "Family-friendly",
+        "Solo Travel",
+        "Business",
+        "Romantic"
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = label,
+                fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+            Box {
+                Text(
+                    text = value,
+                    fontFamily = FontFamily(Font(R.font.istokweb_bold)),
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .clickable { expanded = true }
+                        .padding(vertical = 4.dp)
+                )
+                
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    travelStyles.forEach { style ->
+                        DropdownMenuItem(
+                            text = { 
+                                Text(
+                                    text = style,
+                                    fontFamily = FontFamily(Font(R.font.istokweb_regular))
+                                ) 
+                            },
+                            onClick = {
+                                onSelection(style)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Icon(
+            imageVector = Icons.Filled.Edit,
+            contentDescription = "Select Travel Style",
+            tint = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier
+                .size(20.dp)
+                .clickable { expanded = true }
+        )
     }
 } 
