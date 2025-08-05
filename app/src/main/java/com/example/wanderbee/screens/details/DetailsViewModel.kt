@@ -21,6 +21,9 @@ import com.example.wanderbee.data.remote.models.weather.DailyWeather
 import com.example.wanderbee.data.repository.DefaultHuggingFaceRepository
 import com.example.wanderbee.data.repository.DefaultPexelsRepository
 import com.example.wanderbee.data.repository.WeatherRepository
+import com.example.wanderbee.data.repository.CityDataRepository
+import com.example.wanderbee.data.repository.CityDetails
+import com.example.wanderbee.screens.details.CityDataState
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +64,7 @@ class DetailsViewModel @Inject constructor(
     private val descriptionMemoryCache: DescriptionMemoryCache,
     private val tipsMemoryCache: CulturalTipsMemoryCache,
     private val weatherRepository: WeatherRepository,
+    private val cityDataRepository: CityDataRepository,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ViewModel() {
 
@@ -79,8 +83,34 @@ class DetailsViewModel @Inject constructor(
     private val _weatherState = MutableStateFlow<WeatherUiState>(WeatherUiState.Loading)
     val weatherState: StateFlow<WeatherUiState> = _weatherState.asStateFlow()
 
+    // Dynamic city data state
+    private val _cityDataState = MutableStateFlow<CityDataState>(CityDataState.Idle)
+    val cityDataState: StateFlow<CityDataState> = _cityDataState.asStateFlow()
+
     var isLiked by mutableStateOf(false)
         private set
+
+    // Function to fetch dynamic city data for cities not in static JSON
+    fun fetchDynamicCityData(cityName: String, countryName: String) {
+        viewModelScope.launch {
+            _cityDataState.value = CityDataState.Loading
+            try {
+                Log.d("DetailsViewModel", "Fetching dynamic data for: $cityName, $countryName")
+                val cityDetails = cityDataRepository.getCityDetails(cityName, countryName)
+                
+                if (cityDetails != null) {
+                    _cityDataState.value = CityDataState.Success(cityDetails)
+                    Log.d("DetailsViewModel", "Dynamic data fetched successfully: ${cityDetails.currency}, ${cityDetails.timezone}")
+                } else {
+                    _cityDataState.value = CityDataState.Error("City not found in database")
+                    Log.w("DetailsViewModel", "City not found: $cityName, $countryName")
+                }
+            } catch (e: Exception) {
+                _cityDataState.value = CityDataState.Error(e.message ?: "Unknown error")
+                Log.e("DetailsViewModel", "Error fetching dynamic city data", e)
+            }
+        }
+    }
 
     fun toggleLike(city: String, destination: String) {
         val userId = auth.currentUser?.uid ?: return

@@ -60,6 +60,7 @@ import com.example.wanderbee.navigation.WanderBeeScreens
 import com.example.wanderbee.screens.chat.ChatViewModel
 import com.example.wanderbee.utils.BottomNavigationBar
 import com.example.wanderbee.utils.SubHeading
+import com.example.wanderbee.screens.details.CityDataState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -78,31 +79,61 @@ fun InfoDetailsScreen(navController: NavController,
     var language by remember { mutableStateOf<String?>("") }
     val context = LocalContext.current
 
+    // Get dynamic city data state
+    val cityDataState by detailsViewModel.cityDataState.collectAsState()
+
     LaunchedEffect(city) {
         val cityInfo = JsonResponses().getCityInfo(context, city)
-        currency = when (cityInfo) {
-            is IndianDestination -> cityInfo.currency
-            is Destination -> cityInfo.currency
-            null -> "Unknown"
-            else -> "Unknown"
+        
+        if (cityInfo != null) {
+            // Use static JSON data
+            currency = when (cityInfo) {
+                is IndianDestination -> cityInfo.currency
+                is Destination -> cityInfo.currency
+                else -> "Unknown"
+            }
+            timezone = when (cityInfo) {
+                is IndianDestination -> cityInfo.timezone
+                is Destination -> cityInfo.timezone
+                else -> "Unknown"
+            }
+            tags = when (cityInfo) {
+                is IndianDestination -> cityInfo.tags
+                is Destination -> cityInfo.tags
+                else -> "Unknown"
+            }
+            language = when (cityInfo) {
+                is IndianDestination -> cityInfo.language
+                is Destination -> cityInfo.language
+                else -> "Unknown"
+            }
+        } else {
+            // City not in static JSON, fetch dynamic data
+            detailsViewModel.fetchDynamicCityData(city, dest)
         }
-        timezone = when (cityInfo) {
-            is IndianDestination -> cityInfo.timezone
-            is Destination -> cityInfo.timezone
-            null -> "Unknown"
-            else -> "Unknown"
-        }
-        tags = when (cityInfo) {
-            is IndianDestination -> cityInfo.tags
-            is Destination -> cityInfo.tags
-            null -> "Unknown"
-            else -> "Unknown"
-        }
-        language = when (cityInfo) {
-            is IndianDestination -> cityInfo.language
-            is Destination -> cityInfo.language
-            null -> "Unknown"
-            else -> "Unknown"
+    }
+
+    // Update with dynamic data when available
+    LaunchedEffect(cityDataState) {
+        val currentState = cityDataState
+        when (currentState) {
+            is CityDataState.Success -> {
+                val cityDetails = currentState.cityDetails
+                currency = cityDetails.currency
+                timezone = cityDetails.timezone
+                tags = cityDetails.tags
+                language = cityDetails.language
+            }
+            is CityDataState.Error -> {
+                // Fallback to default values
+                currency = "Unknown"
+                timezone = "Unknown"
+                tags = listOf("Tourism", "Culture", "Travel")
+                language = "Unknown"
+            }
+            else -> {
+                // Keep existing values while loading
+            }
         }
     }
 
@@ -227,7 +258,8 @@ fun InfoDetailsScreen(navController: NavController,
                 currency = currency ?: "Unknown",
                 timeZone = timezone ?: "Unknown",
                 tags = tags.toString(),
-                language = language ?: "Unknown"
+                language = language ?: "Unknown",
+                cityDataState = cityDataState
             )
 
             Button(
@@ -257,7 +289,8 @@ fun InfoScreenContent(
     currency: String,
     timeZone: String,
     tags: String,
-    language: String
+    language: String,
+    cityDataState: CityDataState
 ) {
     val scrollState = rememberScrollState()
 
@@ -317,6 +350,27 @@ fun InfoScreenContent(
             fontSize = 14.sp,
             modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)
         )
+        
+        // Show loading indicator for dynamic data
+        if (cityDataState is CityDataState.Loading) {
+            Row(
+                modifier = Modifier.padding(bottom = 8.dp, start = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Loading city information...",
+                    fontFamily = FontFamily(Font(R.font.istokweb_regular)),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        }
+        
         Text(
             text = "Currency: $currency",
             fontFamily = FontFamily(Font(R.font.istokweb_regular)),

@@ -7,6 +7,7 @@ import com.example.wanderbee.data.local.dao.CityDescriptionDao
 import com.example.wanderbee.data.local.dao.CulturalTipsDao
 import com.example.wanderbee.data.local.dao.ProfileDao
 import com.example.wanderbee.data.local.dao.SavedDestinationDao
+import com.example.wanderbee.data.local.dao.CityDataDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -46,5 +47,10 @@ object DatabaseModule {
     @Provides
     fun provideProfileDao(database: AppDatabase): ProfileDao {
         return database.profileDao()
+    }
+
+    @Provides
+    fun provideCityDataDao(database: AppDatabase): CityDataDao {
+        return database.cityDataDao()
     }
 }
