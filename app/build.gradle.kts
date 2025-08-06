@@ -97,6 +97,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     
     // Google Play Services Location
@@ -135,6 +136,9 @@ dependencies {
     implementation("androidx.room:room-runtime:$roomVersion")
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
+
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 
     // ExoPlayer
     implementation("androidx.media3:media3-exoplayer:1.4.1")

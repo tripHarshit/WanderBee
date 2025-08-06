@@ -27,6 +27,9 @@ import com.example.wanderbee.screens.chat.ChatScreen
 import com.example.wanderbee.screens.chat.PrivateChatScreen
 import com.example.wanderbee.screens.saved.SavedScreen
 import com.example.wanderbee.screens.profile.ProfileScreen
+import com.example.wanderbee.screens.splash.SplashScreen
+import com.example.wanderbee.screens.splash.SplashViewModel
+import com.example.wanderbee.screens.onboarding.OnboardingScreen
 
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
@@ -36,8 +39,29 @@ fun WanderBeeNavigation(){
     val detailsViewModel: DetailsViewModel = hiltViewModel()
     val aiViewModel: AiViewModel = hiltViewModel()
     val chatViewModel: ChatViewModel = hiltViewModel()
+    val splashViewModel: SplashViewModel = hiltViewModel()
 
-    NavHost(navController = navController, startDestination = WanderBeeScreens.HomeScreen.name){
+    NavHost(navController = navController, startDestination = WanderBeeScreens.SplashScreen.name){
+        
+        // Splash Screen
+        composable(route = WanderBeeScreens.SplashScreen.name) {
+            SplashScreen(
+                onNavigateToHome = { navController.navigate(WanderBeeScreens.HomeScreen.name) },
+                onNavigateToOnboarding = { navController.navigate(WanderBeeScreens.OnboardingScreen.name) },
+                isLoggedIn = splashViewModel.isUserLoggedIn(),
+                isFirstLaunch = true // This will be managed by the ViewModel
+            )
+        }
+        
+        // Onboarding Screen
+        composable(route = WanderBeeScreens.OnboardingScreen.name) {
+            OnboardingScreen(
+                onNavigateToLogin = { navController.navigate(WanderBeeScreens.LoginScreen.name) },
+                onNavigateToHome = { navController.navigate(WanderBeeScreens.HomeScreen.name) },
+                isLoggedIn = splashViewModel.isUserLoggedIn()
+            )
+        }
+        
         composable(route = WanderBeeScreens.HomeScreen.name) {
            HomeScreen(navController = navController, homeScreenViewModel = homeScreenViewModel)
         }

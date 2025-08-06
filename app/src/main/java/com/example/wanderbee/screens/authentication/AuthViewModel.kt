@@ -34,7 +34,8 @@ class AuthViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val firebaseFireStore: FirebaseFirestore,
     private val profileDao: ProfileDao,
-    private val imgBBRepository: ImgBBRepository
+    private val imgBBRepository: ImgBBRepository,
+    private val notificationManager: com.example.wanderbee.utils.NotificationManager
 ) : ViewModel() {
 
     private val _loginState = MutableStateFlow<State>(State.Idle)
@@ -72,10 +73,14 @@ class AuthViewModel @Inject constructor(
             _loginState.value = State.Loading
             firebaseAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener { task ->
-                    _loginState.value = if (task.isSuccessful) {
-                        State.Success
+                    if (task.isSuccessful) {
+                        _loginState.value = State.Success
+                        // Get and store FCM token after successful login
+                        viewModelScope.launch {
+                            notificationManager.getAndStoreFCMToken()
+                        }
                     } else {
-                        State.Error
+                        _loginState.value = State.Error
                     }
                 }
         }
@@ -97,6 +102,10 @@ class AuthViewModel @Inject constructor(
                                 .document(uid)
                                 .set(mapOf("name" to name))
                         }
+                        // Get and store FCM token after successful signup
+                        viewModelScope.launch {
+                            notificationManager.getAndStoreFCMToken()
+                        }
                     } else {
                         _signUpState.value = State.Error
                     }
@@ -117,6 +126,10 @@ class AuthViewModel @Inject constructor(
                 }
                 // Sync Google profile to Firestore and Room
                 syncGoogleProfile()
+                // Get and store FCM token after successful Google sign-in
+                viewModelScope.launch {
+                    notificationManager.getAndStoreFCMToken()
+                }
             }
             .addOnFailureListener { exception ->
                 Log.e("AuthViewModel", "Google Sign-In Failed", exception)
@@ -153,6 +166,15 @@ class AuthViewModel @Inject constructor(
                     _forgotState.value = State.Error
                 }
             }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            // Delete FCM token before logging out
+            notificationManager.deleteFCMToken()
+            // Sign out from Firebase
+            firebaseAuth.signOut()
+        }
     }
 }
 
