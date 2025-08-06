@@ -231,7 +231,7 @@ fun LoginScreen(navController: NavController,authViewModel: AuthViewModel = hilt
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.padding(top = 16.dp)){
                 Text(
-                    text = "Already have an account?",
+                    text = "Don't have an account?",
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(end = 8.dp)
                 )

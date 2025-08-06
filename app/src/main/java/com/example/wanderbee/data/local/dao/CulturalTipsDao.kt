@@ -16,4 +16,13 @@ interface CulturalTipsDao {
 
     @Query("DELETE FROM cultural_tips WHERE timestamp < :timestamp")
     suspend fun deleteOldTips(timestamp: Long)
+    
+    @Query("DELETE FROM cultural_tips")
+    suspend fun deleteAllCulturalTips()
+    
+    @Query("SELECT COUNT(*) FROM cultural_tips")
+    suspend fun getCulturalTipsCount(): Int
+    
+    @Query("DELETE FROM cultural_tips WHERE cityName = :cityName")
+    suspend fun deleteCulturalTips(cityName: String)
 }

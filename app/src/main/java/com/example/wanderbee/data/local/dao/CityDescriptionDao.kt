@@ -19,4 +19,7 @@ interface CityDescriptionDao {
 
     @Query("DELETE FROM city_descriptions WHERE cityName = :cityName")
     suspend fun deleteOldDescriptions(cityName: String)
+    
+    @Query("DELETE FROM city_descriptions")
+    suspend fun deleteAllCityDescriptions()
 }

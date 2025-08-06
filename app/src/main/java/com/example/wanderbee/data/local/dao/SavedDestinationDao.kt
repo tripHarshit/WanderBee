@@ -22,4 +22,13 @@ interface SavedDestinationDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM saved_destinations WHERE destinationId = :destinationId AND userId = :userId)")
     suspend fun isDestinationSaved(destinationId: String, userId: String): Boolean
+    
+    @Query("DELETE FROM saved_destinations")
+    suspend fun deleteAllSavedDestinations()
+    
+    @Query("SELECT COUNT(*) FROM saved_destinations")
+    suspend fun getSavedDestinationsCount(): Int
+    
+    @Query("DELETE FROM saved_destinations WHERE userId = :userId")
+    suspend fun deleteSavedDestinationsByUserId(userId: String)
 } 

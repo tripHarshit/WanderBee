@@ -23,4 +23,13 @@ interface ProfileDao {
 
     @Query("SELECT EXISTS(SELECT 1 FROM user_profiles WHERE userId = :userId)")
     suspend fun profileExists(userId: String): Boolean
+    
+    @Query("DELETE FROM user_profiles")
+    suspend fun deleteAllProfiles()
+    
+    @Query("SELECT COUNT(*) FROM user_profiles")
+    suspend fun getProfileCount(): Int
+    
+    @Query("DELETE FROM user_profiles WHERE userId = :userId")
+    suspend fun deleteProfileByUserId(userId: String)
 } 

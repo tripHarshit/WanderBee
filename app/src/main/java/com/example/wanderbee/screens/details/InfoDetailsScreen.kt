@@ -140,8 +140,7 @@ fun InfoDetailsScreen(navController: NavController,
     Scaffold(
         topBar = { DetailsScreenTopBar(navController = navController,
             isLiked = detailsViewModel.isLiked,
-            onLikeClick = { detailsViewModel.toggleLike(city, dest)
-                chatViewModel.joinGroupChat(destinationId = "${city}_$dest", destinationName = "${city}_$dest")},
+            onLikeClick = { detailsViewModel.toggleLike(city, dest) },
             city = city,
             dest = dest) },
         bottomBar = {

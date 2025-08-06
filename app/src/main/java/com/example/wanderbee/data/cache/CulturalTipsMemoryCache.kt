@@ -42,5 +42,13 @@ class CulturalTipsMemoryCache @Inject constructor() {
             .take(entriesToRemove)
             .forEach { cache.remove(it.key) }
     }
+    
+    fun clear() {
+        cache.clear()
+    }
+    
+    fun size(): Int {
+        return cache.size
+    }
 
 }

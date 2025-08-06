@@ -3,9 +3,12 @@ package com.example.wanderbee.data.local.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "saved_destinations")
+@Entity(
+    tableName = "saved_destinations",
+    primaryKeys = ["destinationId", "userId"]
+)
 data class SavedDestinationEntity(
-    @PrimaryKey val destinationId: String, // Format: "city_dest"
+    val destinationId: String, // Format: "city_dest"
     val city: String,
     val destination: String,
     val userId: String,

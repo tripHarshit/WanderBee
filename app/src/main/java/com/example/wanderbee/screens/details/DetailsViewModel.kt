@@ -65,6 +65,7 @@ class DetailsViewModel @Inject constructor(
     private val tipsMemoryCache: CulturalTipsMemoryCache,
     private val weatherRepository: WeatherRepository,
     private val cityDataRepository: CityDataRepository,
+    private val chatRepository: com.example.wanderbee.data.repository.ChatRepository,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) : ViewModel() {
 
@@ -89,6 +90,18 @@ class DetailsViewModel @Inject constructor(
 
     var isLiked by mutableStateOf(false)
         private set
+    
+    init {
+        // Uncomment the next line to clear all cache and data for release
+        // clearAllCacheAndData()
+        
+        // Check if user is logged in on initialization
+        val currentUser = auth.currentUser
+        Log.d("DetailsViewModel", "Initialized with user: ${currentUser?.uid ?: "Not logged in"}")
+        
+        // Test database connection
+        testDatabaseConnection()
+    }
 
     // Function to fetch dynamic city data for cities not in static JSON
     fun fetchDynamicCityData(cityName: String, countryName: String) {
@@ -113,16 +126,30 @@ class DetailsViewModel @Inject constructor(
     }
 
     fun toggleLike(city: String, destination: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            Log.e("DetailsViewModel", "User not logged in - cannot save destination")
+            // TODO: Show login prompt or navigate to login screen
+            return
+        }
+        
         val destinationId = "${city}_$destination"
+        
+        Log.d("DetailsViewModel", "toggleLike called for: city=$city, destination=$destination, userId=$userId")
         
         viewModelScope.launch {
             try {
                 val isCurrentlySaved = savedDestinationDao.isDestinationSaved(destinationId, userId)
+                Log.d("DetailsViewModel", "Current saved status: $isCurrentlySaved")
                 
                 if (isCurrentlySaved) {
                     // Unsave the destination
                     savedDestinationDao.unsaveDestination(destinationId, userId)
+                    
+                    // Note: We don't remove from chat room immediately when unsaving
+                    // Users might want to keep chatting even after unsaving
+                    // The chat room cleanup is handled by the removeExpiredParticipants function
+                    
                     isLiked = false
                     Log.d("DetailsViewModel", "Destination unsaved: $destinationId")
                 } else {
@@ -133,9 +160,26 @@ class DetailsViewModel @Inject constructor(
                         destination = destination,
                         userId = userId
                     )
-                    savedDestinationDao.saveDestination(savedDestination)
-                    isLiked = true
-                    Log.d("DetailsViewModel", "Destination saved: $destinationId")
+                    Log.d("DetailsViewModel", "Attempting to save destination: $savedDestination")
+                    
+                    try {
+                        savedDestinationDao.saveDestination(savedDestination)
+                        Log.d("DetailsViewModel", "Successfully saved destination to database")
+                        
+                        // Create chat room for this destination
+                        try {
+                            val destinationName = "$city, $destination"
+                            chatRepository.joinDestinationChat(destinationId, destinationName)
+                            Log.d("DetailsViewModel", "Chat room created for destination: $destinationId")
+                        } catch (e: Exception) {
+                            Log.e("DetailsViewModel", "Error creating chat room: ${e.message}", e)
+                        }
+                        
+                        isLiked = true
+                        Log.d("DetailsViewModel", "Destination saved and liked: $destinationId")
+                    } catch (e: Exception) {
+                        Log.e("DetailsViewModel", "Error saving destination to database: ${e.message}", e)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("DetailsViewModel", "Error toggling like: ${e.message}")
@@ -144,7 +188,13 @@ class DetailsViewModel @Inject constructor(
     }
 
     fun checkIfSaved(city: String, destination: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            Log.e("DetailsViewModel", "User not logged in - cannot check saved status")
+            isLiked = false
+            return
+        }
+        
         val destinationId = "${city}_$destination"
         
         viewModelScope.launch {
@@ -153,6 +203,7 @@ class DetailsViewModel @Inject constructor(
                 Log.d("DetailsViewModel", "Checked saved status for $destinationId: $isLiked")
             } catch (e: Exception) {
                 Log.e("DetailsViewModel", "Error checking saved status: ${e.message}")
+                isLiked = false
             }
         }
     }
@@ -294,6 +345,56 @@ class DetailsViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("WeatherViewModel", "Weather error: ${e.message}", e)
                 _weatherState.value = WeatherUiState.Error(e.message ?: "Unknown error")
+            }
+        }
+    }
+    
+    /**
+     * Test database connection and functionality
+     */
+    fun testDatabaseConnection() {
+        viewModelScope.launch {
+            try {
+                val count = savedDestinationDao.getSavedDestinationsCount()
+                Log.d("DetailsViewModel", "Database test - Total saved destinations: $count")
+                
+                val currentUser = auth.currentUser
+                Log.d("DetailsViewModel", "Database test - Current user: ${currentUser?.uid ?: "Not logged in"}")
+                
+                if (currentUser != null) {
+                    val userDestinations = savedDestinationDao.getAllSavedDestinations(currentUser.uid)
+                    Log.d("DetailsViewModel", "Database test - User destinations: ${userDestinations.size}")
+                }
+            } catch (e: Exception) {
+                Log.e("DetailsViewModel", "Database test failed: ${e.message}", e)
+            }
+        }
+    }
+    
+    /**
+     * Clear all local cache and data for release preparation
+     * Call this function before building release APK
+     */
+    fun clearAllCacheAndData() {
+        viewModelScope.launch {
+            try {
+                Log.d("DetailsViewModel", "🧹 Starting cache and data cleanup...")
+                
+                // Clear memory caches
+                descriptionMemoryCache.clear()
+                tipsMemoryCache.clear()
+                Log.d("DetailsViewModel", "✅ Memory caches cleared")
+                
+                // Clear database tables
+                cityDescriptionDao.deleteAllCityDescriptions()
+                culturalTipsDao.deleteAllCulturalTips()
+                savedDestinationDao.deleteAllSavedDestinations()
+                Log.d("DetailsViewModel", "✅ Database tables cleared")
+                
+                Log.d("DetailsViewModel", "🎉 All cache and data cleared successfully!")
+                
+            } catch (e: Exception) {
+                Log.e("DetailsViewModel", "❌ Error clearing cache and data: ${e.message}", e)
             }
         }
     }
