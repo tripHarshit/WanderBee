@@ -66,11 +66,15 @@ fun SplashScreen(
         startAnimation = true
         delay(3000L)
         
-        if (isFirstLaunch) {
-            onNavigateToOnboarding()
-        } else if (isLoggedIn) {
+        // Check if user is logged in first
+        if (isLoggedIn) {
+            // User is logged in, go directly to home screen
             onNavigateToHome()
+        } else if (isFirstLaunch) {
+            // First time user, show onboarding
+            onNavigateToOnboarding()
         } else {
+            // User has seen onboarding but not logged in, show onboarding again
             onNavigateToOnboarding()
         }
     }

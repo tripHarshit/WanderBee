@@ -45,20 +45,38 @@ fun WanderBeeNavigation(){
         
         // Splash Screen
         composable(route = WanderBeeScreens.SplashScreen.name) {
+            val isLoggedIn = splashViewModel.isUserLoggedIn()
             SplashScreen(
-                onNavigateToHome = { navController.navigate(WanderBeeScreens.HomeScreen.name) },
-                onNavigateToOnboarding = { navController.navigate(WanderBeeScreens.OnboardingScreen.name) },
-                isLoggedIn = splashViewModel.isUserLoggedIn(),
+                onNavigateToHome = { 
+                    navController.navigate(WanderBeeScreens.HomeScreen.name) {
+                        popUpTo(WanderBeeScreens.SplashScreen.name) { inclusive = true }
+                    }
+                },
+                onNavigateToOnboarding = { 
+                    navController.navigate(WanderBeeScreens.OnboardingScreen.name) {
+                        popUpTo(WanderBeeScreens.SplashScreen.name) { inclusive = true }
+                    }
+                },
+                isLoggedIn = isLoggedIn,
                 isFirstLaunch = true // This will be managed by the ViewModel
             )
         }
         
         // Onboarding Screen
         composable(route = WanderBeeScreens.OnboardingScreen.name) {
+            val isLoggedIn = splashViewModel.isUserLoggedIn()
             OnboardingScreen(
-                onNavigateToLogin = { navController.navigate(WanderBeeScreens.LoginScreen.name) },
-                onNavigateToHome = { navController.navigate(WanderBeeScreens.HomeScreen.name) },
-                isLoggedIn = splashViewModel.isUserLoggedIn()
+                onNavigateToLogin = { 
+                    navController.navigate(WanderBeeScreens.LoginScreen.name) {
+                        popUpTo(WanderBeeScreens.OnboardingScreen.name) { inclusive = true }
+                    }
+                },
+                onNavigateToHome = { 
+                    navController.navigate(WanderBeeScreens.HomeScreen.name) {
+                        popUpTo(WanderBeeScreens.OnboardingScreen.name) { inclusive = true }
+                    }
+                },
+                isLoggedIn = isLoggedIn
             )
         }
         

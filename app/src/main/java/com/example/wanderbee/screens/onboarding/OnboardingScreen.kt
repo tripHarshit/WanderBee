@@ -83,24 +83,41 @@ fun OnboardingScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Skip button
+            // Enhanced Skip button with better visibility
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                TextButton(
-                    onClick = {
-                        if (isLoggedIn) onNavigateToHome() else onNavigateToLogin()
-                    },
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                ) {
-                    Text(
-                        text = "Skip",
-                        color = Subheading,
-                        fontSize = 16.sp,
-                        fontFamily = FontFamily(Font(R.font.istokweb_regular))
-                    )
+                // Skip button - more prominent for logged-out users
+                if (!isLoggedIn) {
+                    TextButton(
+                        onClick = { onNavigateToLogin() },
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = Subheading
+                        )
+                    ) {
+                        Text(
+                            text = "Skip to Login",
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily(Font(R.font.istokweb_regular))
+                        )
+                    }
+                } else {
+                    TextButton(
+                        onClick = { onNavigateToHome() },
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = Subheading
+                        )
+                    ) {
+                        Text(
+                            text = "Skip",
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily(Font(R.font.istokweb_regular))
+                        )
+                    }
                 }
             }
             
@@ -156,7 +173,7 @@ fun OnboardingScreen(
                         shape = RoundedCornerShape(28.dp)
                     ) {
                         Text(
-                            text = "Get Started",
+                            text = if (isLoggedIn) "Get Started" else "Login Now",
                             color = AppBackground,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
