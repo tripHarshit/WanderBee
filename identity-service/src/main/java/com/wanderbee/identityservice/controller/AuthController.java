@@ -1,9 +1,13 @@
 package com.wanderbee.identityservice.controller;
 
 import com.wanderbee.identityservice.dto.AuthRequest;
+import com.wanderbee.identityservice.dto.GoogleAuthResponse;
+import com.wanderbee.identityservice.dto.GoogleTokenRequest;
 import com.wanderbee.identityservice.entity.UserCredentials;
 import com.wanderbee.identityservice.service.AuthService;
+import com.wanderbee.identityservice.service.GoogleAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -15,6 +19,9 @@ public class AuthController {
 
         @Autowired
         private AuthService service;
+
+        @Autowired
+        private GoogleAuthService googleAuthService;
 
         @Autowired
         private AuthenticationManager authenticationManager;
@@ -52,5 +59,16 @@ public class AuthController {
         public String validateToken(@RequestParam("token") String token) {
             service.validateToken(token);
             return "Token is valid";
+        }
+
+        /**
+         * Handles Google OAuth2 login from mobile app.
+         * Validates the Google ID token and returns a WanderBee JWT.
+         * Creates a new user if they don't exist in the system.
+         */
+        @PostMapping("/google-login")
+        public ResponseEntity<GoogleAuthResponse> googleLogin(@RequestBody GoogleTokenRequest request) {
+            GoogleAuthResponse response = googleAuthService.authenticateGoogleUser(request.getIdToken());
+            return ResponseEntity.ok(response);
         }
 }

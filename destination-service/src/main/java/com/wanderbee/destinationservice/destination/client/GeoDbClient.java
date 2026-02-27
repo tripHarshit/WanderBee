@@ -13,13 +13,16 @@ public interface GeoDbClient {
     @GetMapping("/v1/geo/cities")
     GeoDbResponse getPopularCities(
             @RequestParam("limit") int limit,
-            @RequestParam("offset") int offset
+            @RequestParam("offset") int offset,
+            @RequestHeader("X-RapidAPI-Key") String apiKey,
+            @RequestHeader("X-RapidAPI-Host") String host
     );
 
     @GetMapping("/v1/geo/locations/{latLong}/nearbyCities")
     GeoDbResponse getNearbyCities(
             @PathVariable String latLong,
             @RequestParam("limit") int limit,
+            @RequestParam("sort") String sort,
             @RequestHeader("X-RapidAPI-Key") String apiKey,
             @RequestHeader("X-RapidAPI-Host") String host
     );
@@ -29,6 +32,8 @@ public interface GeoDbClient {
             @RequestParam("namePrefix") String namePrefix,
             @RequestParam("limit") int limit,
             @RequestParam("offset") int offset,
-            @RequestParam("sort") String sort
+            @RequestParam("sort") String sort,
+            @RequestHeader("X-RapidAPI-Key") String apiKey,
+            @RequestHeader("X-RapidAPI-Host") String host
     );
 }

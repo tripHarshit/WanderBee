@@ -47,6 +47,14 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 try {
                     // Validate Token
                     jwtUtil.validateToken(token);
+
+                    // Extract userId (email) from token and forward to downstream services
+                    String userId = jwtUtil.extractUserId(token);
+                    exchange = exchange.mutate()
+                            .request(request.mutate()
+                                    .header("X-User-Id", userId)
+                                    .build())
+                            .build();
                 } catch (Exception e) {
                     return onError(exchange, "Invalid or Expired Token: " + e.getMessage(), HttpStatus.UNAUTHORIZED);
                 }

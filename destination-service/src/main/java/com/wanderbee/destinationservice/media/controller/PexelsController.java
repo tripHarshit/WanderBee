@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 
 @RestController
-@RequestMapping("/api/v1/media")
+    @RequestMapping("/api/v1/media")
 public class PexelsController {
 
     private final PexelsService pexelsService;

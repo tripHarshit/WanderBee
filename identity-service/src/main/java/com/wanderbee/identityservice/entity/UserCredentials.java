@@ -1,5 +1,6 @@
 package com.wanderbee.identityservice.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,6 +18,13 @@ public class UserCredentials {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
     private String name;
+    @Column(unique = true)
     private String email;
     private String password;
+    
+    // OAuth provider: LOCAL (default) or GOOGLE
+    private String authProvider = "LOCAL";
+    
+    // Profile picture URL from OAuth provider
+    private String profilePictureUrl;
 }
