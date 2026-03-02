@@ -1,5 +1,20 @@
 package com.wanderbee.chatservice.controller;
 
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.wanderbee.chatservice.dto.CreateRoomRequest;
 import com.wanderbee.chatservice.dto.DeleteMessageRequest;
 import com.wanderbee.chatservice.dto.SendMessageRequest;
@@ -8,14 +23,9 @@ import com.wanderbee.chatservice.model.ChatRoom;
 import com.wanderbee.chatservice.model.MessageType;
 import com.wanderbee.chatservice.service.ChatMessageService;
 import com.wanderbee.chatservice.service.ChatRoomService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.user.SimpUserRegistry;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -29,13 +39,14 @@ public class ChatRoomController {
     private final SimpUserRegistry userRegistry;
 
     @GetMapping("/rooms")
-    public ResponseEntity<List<ChatRoom>> getRoomsForUser(@RequestParam String userId) {
+    public ResponseEntity<List<ChatRoom>> getRoomsForUser(
+            @RequestHeader("X-User-Id") String userId) {
         return ResponseEntity.ok(chatRoomService.getRoomsForUser(userId));
     }
 
     @PostMapping("/rooms/private")
     public ResponseEntity<ChatRoom> createPrivateRoom(
-            @RequestParam String userId1,
+            @RequestHeader("X-User-Id") String userId1,
             @RequestParam String userId2) {
         return ResponseEntity.ok(chatRoomService.createPrivateRoom(userId1, userId2));
     }
@@ -55,7 +66,7 @@ public class ChatRoomController {
     @DeleteMapping("/rooms/{roomId}/leave")
     public ResponseEntity<ChatRoom> leaveRoom(
             @PathVariable String roomId,
-            @RequestParam String userId) {
+            @RequestHeader("X-User-Id") String userId) {
         ChatRoom updated = chatRoomService.leaveRoom(roomId, userId);
         return updated == null
                 ? ResponseEntity.noContent().build()
@@ -76,10 +87,12 @@ public class ChatRoomController {
      * and Kafka consumer broadcasts to WebSocket subscribers.
      */
     @PostMapping("/messages/send")
-    public ResponseEntity<ChatMessage> sendMessage(@RequestBody SendMessageRequest request) {
+    public ResponseEntity<ChatMessage> sendMessage(
+            @RequestHeader("X-User-Id") String authenticatedUserId,
+            @RequestBody SendMessageRequest request) {
         ChatMessage message = ChatMessage.builder()
                 .roomId(request.getRoomId())
-                .senderId(request.getSenderId())
+                .senderId(authenticatedUserId)
                 .recipientId(request.getRecipientId())
                 .content(request.getContent())
                 .type(request.getType() != null ? request.getType() : MessageType.TEXT)
@@ -94,7 +107,10 @@ public class ChatRoomController {
      * a DELETE event to Kafka.
      */
     @PostMapping("/messages/delete")
-    public ResponseEntity<Void> deleteMessage(@RequestBody DeleteMessageRequest request) {
+    public ResponseEntity<Void> deleteMessage(
+            @RequestHeader("X-User-Id") String authenticatedUserId,
+            @RequestBody DeleteMessageRequest request) {
+        request.setRequesterId(authenticatedUserId);
         chatMessageService.deleteMessage(request);
         return ResponseEntity.noContent().build();
     }

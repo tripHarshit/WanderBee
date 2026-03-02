@@ -1,26 +1,21 @@
 package com.wanderbee.destinationservice.destination.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wanderbee.destinationservice.destination.client.GeoDbClient;
-import com.wanderbee.destinationservice.destination.dto.SaveDestinationRequest;
-import com.wanderbee.destinationservice.destination.dto.SavedDestinationResponse;
-import com.wanderbee.destinationservice.destination.entity.SavedDestination;
-import com.wanderbee.destinationservice.destination.repository.SavedDestinationRepository;
-import com.wanderbee.destinationservice.media.client.PexelsClient;
-import com.wanderbee.destinationservice.insights.dto.CityInsights;
-import com.wanderbee.destinationservice.destination.dto.GeoDbResponse;
-import com.wanderbee.destinationservice.media.dto.PexelsPhotoResponse;
-import com.wanderbee.destinationservice.media.dto.PexelsVideoResponse;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wanderbee.destinationservice.destination.client.GeoDbClient;
+import com.wanderbee.destinationservice.destination.dto.GeoDbResponse;
+import com.wanderbee.destinationservice.destination.dto.SaveDestinationRequest;
+import com.wanderbee.destinationservice.destination.dto.SavedDestinationResponse;
+import com.wanderbee.destinationservice.destination.entity.SavedDestination;
+import com.wanderbee.destinationservice.destination.repository.SavedDestinationRepository;
 
 @Service
 public class DestinationService {
@@ -49,7 +44,13 @@ public class DestinationService {
 
     @Cacheable(value = "nearbyCities", key = "#latLon + #limit")
     public GeoDbResponse getNearbyCities(String latLon, int limit) {
-        return geoDbClient.getNearbyCities(latLon, limit, "-population", geoDbApiKey, GEODB_HOST);
+        // Convert "28.6139,77.2090" → "+28.6139+077.2090" (GeoDb format)
+        String formatted = latLon;
+        if (latLon.contains(",")) {
+            String[] parts = latLon.split(",");
+            formatted = String.format("%+f%+f", Double.parseDouble(parts[0].trim()), Double.parseDouble(parts[1].trim()));
+        }
+        return geoDbClient.getNearbyCities(formatted, limit, "-population", geoDbApiKey, GEODB_HOST);
     }
 
     public GeoDbResponse searchCities(String namePrefix,int limit,int offset){
