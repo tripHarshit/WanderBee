@@ -88,7 +88,7 @@ class HomeScreenViewModel @Inject constructor(
      * Results are stored in [popularCities] and also cached in [popularCitiesCache]
      * so that the search fallback doesn't need a second round-trip.
      */
-    fun fetchPopularCities(limit: Int = 25) {
+    fun fetchPopularCities(limit: Int = 10) {
         if (_popularCities.value.isNotEmpty()) return // already loaded
         viewModelScope.launch {
             _isPopularCitiesLoading.value = true

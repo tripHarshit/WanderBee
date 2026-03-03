@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WanderBee Chat - WebSocket Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; background: #1a1a2e; color: #eee; }
+        h1 { color: #f59e0b; }
+        h3 { color: #38bdf8; margin-top: 24px; }
+        .section { background: #16213e; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+        input, button, select { padding: 8px 12px; margin: 4px; border-radius: 4px; border: 1px solid #444; font-size: 14px; }
+        input { background: #0f3460; color: #eee; width: 250px; }
+        button { background: #f59e0b; color: #000; font-weight: bold; cursor: pointer; }
+        button:hover { background: #d97706; }
+        button:disabled { background: #555; cursor: not-allowed; }
+        #log { background: #0a0a23; padding: 12px; border-radius: 8px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 13px; white-space: pre-wrap; }
+        .msg-in { color: #4ade80; }
+        .msg-out { color: #60a5fa; }
+        .msg-sys { color: #f59e0b; }
+        .msg-err { color: #f87171; }
+        .status { padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: bold; }
+        .connected { background: #166534; color: #4ade80; }
+        .disconnected { background: #7f1d1d; color: #fca5a5; }
+    </style>
+</head>
+<body>
+
+<h1>🐝 WanderBee Chat - WebSocket Tester</h1>
+
+<!-- CONNECTION -->
+<div class="section">
+    <h3>1. Connect</h3>
+    <label>Your User ID: </label>
+    <input type="text" id="userId" value="user1" />
+    <button id="btnConnect" onclick="connect()">Connect</button>
+    <button id="btnDisconnect" onclick="disconnect()" disabled>Disconnect</button>
+    <span id="statusBadge" class="status disconnected">Disconnected</span>
+</div>
+
+<!-- SUBSCRIBE -->
+<div class="section">
+    <h3>2. Subscribe</h3>
+    <label>Private messages (auto-subscribed on connect)</label><br/>
+    <label>Group Room ID: </label>
+    <input type="text" id="groupRoomId" placeholder="paste group room id" />
+    <button onclick="subscribeGroup()">Subscribe to Group</button>
+</div>
+
+<!-- SEND MESSAGE -->
+<div class="section">
+    <h3>3. Send Message</h3>
+    <label>Room ID: </label>
+    <input type="text" id="sendRoomId" placeholder="room id" /><br/>
+    <label>Recipient (private only): </label>
+    <input type="text" id="sendRecipient" placeholder="e.g. user2 (leave empty for group)" /><br/>
+    <label>Message: </label>
+    <input type="text" id="sendContent" placeholder="Hello!" style="width:400px;" />
+    <select id="sendType">
+        <option value="TEXT">TEXT</option>
+        <option value="IMAGE">IMAGE</option>
+        <option value="SYSTEM">SYSTEM</option>
+    </select>
+    <button onclick="sendMessage()">Send via WebSocket</button>
+</div>
+
+<!-- DELETE MESSAGE -->
+<div class="section">
+    <h3>4. Delete Message</h3>
+    <label>Message ID: </label>
+    <input type="text" id="delMessageId" placeholder="message id" />
+    <label>Room ID: </label>
+    <input type="text" id="delRoomId" placeholder="room id" />
+    <button onclick="deleteMessage()">Delete via WebSocket</button>
+</div>
+
+<!-- LOG -->
+<div class="section">
+    <h3>Event Log</h3>
+    <button onclick="clearLog()">Clear</button>
+    <div id="log"></div>
+</div>
+
+<script>
+    let stompClient = null;
+    let currentUserId = null;
+
+    function log(text, className = 'msg-sys') {
+        const el = document.getElementById('log');
+        const time = new Date().toLocaleTimeString();
+        el.innerHTML += `<span class="${className}">[${time}] ${text}</span>\n`;
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+    function setStatus(connected) {
+        const badge = document.getElementById('statusBadge');
+        badge.textContent = connected ? 'Connected' : 'Disconnected';
+        badge.className = 'status ' + (connected ? 'connected' : 'disconnected');
+        document.getElementById('btnConnect').disabled = connected;
+        document.getElementById('btnDisconnect').disabled = !connected;
+    }
+
+    function connect() {
+        currentUserId = document.getElementById('userId').value.trim();
+        if (!currentUserId) { alert('Enter a User ID'); return; }
+
+        log(`Connecting as "${currentUserId}" to ws://localhost:8085/ws-sockjs ...`);
+
+        const socket = new SockJS('http://localhost:8085/ws-sockjs');
+        stompClient = Stomp.over(socket);
+
+        // Reduce noisy debug logs (set to empty function)
+        // stompClient.debug = null;  // uncomment to silence STOMP debug
+
+        const headers = { userId: currentUserId };
+
+        stompClient.connect(headers, function (frame) {
+            log('✅ CONNECTED: ' + frame, 'msg-in');
+            setStatus(true);
+
+            // Auto-subscribe to private messages for this user
+            // Spring resolves the user from the Principal set during CONNECT
+            const privateDest = '/user/queue/messages';
+            stompClient.subscribe(privateDest, function (msg) {
+                const body = JSON.parse(msg.body);
+                if (body.type === 'DELETE') {
+                    log(`🗑️ DELETE event — message id="${body.id}" removed from room "${body.roomId}"`, 'msg-err');
+                } else {
+                    log(`📩 PRIVATE from ${body.senderId}: "${body.content}" [type=${body.type}, room=${body.roomId}]`, 'msg-in');
+                }
+            });
+            log(`📌 Subscribed to: ${privateDest}`, 'msg-sys');
+
+        }, function (error) {
+            log('❌ Connection error: ' + error, 'msg-err');
+            setStatus(false);
+        });
+    }
+
+    function disconnect() {
+        if (stompClient) {
+            stompClient.disconnect(function () {
+                log('🔌 Disconnected');
+                setStatus(false);
+            });
+        }
+    }
+
+    function subscribeGroup() {
+        const roomId = document.getElementById('groupRoomId').value.trim();
+        if (!roomId) { alert('Enter a Group Room ID'); return; }
+        if (!stompClient || !stompClient.connected) { alert('Connect first!'); return; }
+
+        const dest = `/topic/room/${roomId}`;
+        stompClient.subscribe(dest, function (msg) {
+            const body = JSON.parse(msg.body);
+            if (body.type === 'DELETE') {
+                log(`🗑️ GROUP DELETE — message id="${body.id}" in room "${roomId}"`, 'msg-err');
+            } else {
+                log(`📢 GROUP [${roomId}] from ${body.senderId}: "${body.content}" [type=${body.type}]`, 'msg-in');
+            }
+        });
+        log(`📌 Subscribed to group: ${dest}`, 'msg-sys');
+    }
+
+    function sendMessage() {
+        if (!stompClient || !stompClient.connected) { alert('Connect first!'); return; }
+
+        const roomId = document.getElementById('sendRoomId').value.trim();
+        const recipient = document.getElementById('sendRecipient').value.trim();
+        const content = document.getElementById('sendContent').value.trim();
+        const type = document.getElementById('sendType').value;
+
+        if (!roomId || !content) { alert('Room ID and message content are required'); return; }
+
+        const payload = {
+            roomId: roomId,
+            senderId: currentUserId,
+            recipientId: recipient || null,
+            content: content,
+            type: type
+        };
+
+        stompClient.send('/app/chat.send', {}, JSON.stringify(payload));
+        log(`📤 SENT to room ${roomId}: "${content}" [type=${type}]`, 'msg-out');
+    }
+
+    function deleteMessage() {
+        if (!stompClient || !stompClient.connected) { alert('Connect first!'); return; }
+
+        const messageId = document.getElementById('delMessageId').value.trim();
+        const roomId = document.getElementById('delRoomId').value.trim();
+
+        if (!messageId || !roomId) { alert('Message ID and Room ID required'); return; }
+
+        const payload = {
+            messageId: messageId,
+            roomId: roomId,
+            requesterId: currentUserId
+        };
+
+        stompClient.send('/app/chat.delete', {}, JSON.stringify(payload));
+        log(`🗑️ DELETE request sent for message ${messageId}`, 'msg-out');
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,39 @@
+package com.wanderbee.chatservice.model;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Document(collection = "chat_messages")
+public class ChatMessage {
+
+    @Id
+    private String id;
+
+    /** Text body or image URL */
+    private String content;
+
+    private String senderId;
+
+    /** Null for group messages */
+    private String recipientId;
+
+    @Indexed
+    private String roomId;
+
+    @Builder.Default
+    private LocalDateTime timestamp = LocalDateTime.now();
+
+    @Builder.Default
+    private MessageType type = MessageType.TEXT;
+}
