@@ -14,17 +14,22 @@ import com.example.wanderbee.data.local.dao.SavedDestinationDao
 import com.example.wanderbee.data.local.entity.CityDescriptionEntity
 import com.example.wanderbee.data.local.entity.CulturalTipsEntity
 import com.example.wanderbee.data.local.entity.SavedDestinationEntity
-import com.example.wanderbee.data.remote.apiService.AITask
 import com.example.wanderbee.data.remote.models.media.PexelsPhoto
 import com.example.wanderbee.data.remote.models.media.PexelsVideo
 import com.example.wanderbee.data.remote.models.weather.DailyWeather
-import com.example.wanderbee.data.repository.DefaultHuggingFaceRepository
+import com.example.wanderbee.data.remote.models.destinations.City
+import com.example.wanderbee.data.remote.models.destinations.Country
+import com.example.wanderbee.data.remote.models.destinations.Language
+import com.example.wanderbee.data.repository.AiRepository
 import com.example.wanderbee.data.repository.DefaultPexelsRepository
+import com.example.wanderbee.data.repository.DestinationResult
+import com.example.wanderbee.data.repository.DestinationsRepository
 import com.example.wanderbee.data.repository.WeatherRepository
 import com.example.wanderbee.data.repository.CityDataRepository
 import com.example.wanderbee.data.repository.CityDetails
+import com.example.wanderbee.data.repository.ChatRepository
 import com.example.wanderbee.screens.details.CityDataState
-import com.google.firebase.auth.FirebaseAuth
+import com.example.wanderbee.utils.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,7 +61,7 @@ sealed class WeatherUiState {
 
 @HiltViewModel
 class DetailsViewModel @Inject constructor(
-    private val defaultHuggingFaceRepository: DefaultHuggingFaceRepository,
+    private val aiRepository: AiRepository,
     private val pexelsRepository: DefaultPexelsRepository,
     private val cityDescriptionDao: CityDescriptionDao,
     private val culturalTipsDao: CulturalTipsDao,
@@ -65,8 +70,9 @@ class DetailsViewModel @Inject constructor(
     private val tipsMemoryCache: CulturalTipsMemoryCache,
     private val weatherRepository: WeatherRepository,
     private val cityDataRepository: CityDataRepository,
-    private val chatRepository: com.example.wanderbee.data.repository.ChatRepository,
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val destinationsRepository: DestinationsRepository,
+    private val chatRepository: ChatRepository,
+    private val appPreferences: AppPreferences
 ) : ViewModel() {
 
     private val _descriptionState = MutableStateFlow<ItineraryState>(ItineraryState.Idle)
@@ -95,12 +101,90 @@ class DetailsViewModel @Inject constructor(
         // Uncomment the next line to clear all cache and data for release
         // clearAllCacheAndData()
         
-        // Check if user is logged in on initialization
-        val currentUser = auth.currentUser
-        Log.d("DetailsViewModel", "Initialized with user: ${currentUser?.uid ?: "Not logged in"}")
+        // Log user info on initialization
+        viewModelScope.launch {
+            val email = appPreferences.getUserEmailOnce()
+            Log.d("DetailsViewModel", "Initialized with user: ${email ?: "Not logged in"}")
+        }
+        clearAllCacheAndData()
         
         // Test database connection
         testDatabaseConnection()
+    }
+
+    /**
+     * Fetch city info from the backend's static JSON endpoints.
+     * Tries Indian destinations first, then all destinations.
+     * If not found, falls back to dynamic city data (CityDataRepository).
+     */
+    fun fetchStaticCityInfo(cityName: String, countryName: String) {
+        viewModelScope.launch {
+            _cityDataState.value = CityDataState.Loading
+            try {
+                // Try Indian destinations first
+                val indianResult = destinationsRepository.getIndianDestinations()
+                if (indianResult is DestinationResult.Success) {
+                    val match = indianResult.data.find { it.name.equals(cityName, ignoreCase = true) }
+                    if (match != null) {
+                        _cityDataState.value = CityDataState.Success(
+                            match.toCityDetails()
+                        )
+                        Log.d("DetailsViewModel", "Static Indian data found for: $cityName")
+                        return@launch
+                    }
+                }
+
+                // Try all destinations
+                val allResult = destinationsRepository.getAllDestinations()
+                if (allResult is DestinationResult.Success) {
+                    val match = allResult.data.find { it.name.equals(cityName, ignoreCase = true) }
+                    if (match != null) {
+                        _cityDataState.value = CityDataState.Success(
+                            match.toCityDetails()
+                        )
+                        Log.d("DetailsViewModel", "Static all-destinations data found for: $cityName")
+                        return@launch
+                    }
+                }
+
+                // Not found in static data, fall back to dynamic
+                Log.d("DetailsViewModel", "City not in static data, falling back to dynamic: $cityName")
+                fetchDynamicCityData(cityName, countryName)
+            } catch (e: Exception) {
+                Log.e("DetailsViewModel", "Error fetching static city info, falling back to dynamic", e)
+                fetchDynamicCityData(cityName, countryName)
+            }
+        }
+    }
+
+    /**
+     * Convert a StaticDestination to CityDetails for the UI.
+     */
+    private fun com.example.wanderbee.data.remote.models.destinations.StaticDestination.toCityDetails(): CityDetails {
+        val countryName = country ?: state ?: ""
+        return CityDetails(
+            city = City(
+                id = 0,
+                name = name,
+                country = countryName,
+                latitude = lat,
+                longitude = lon
+            ),
+            country = Country(
+                id = 0,
+                name = countryName,
+                code = countryCode,
+                currencyCode = currency,
+                currencyName = null,
+                currencySymbol = null,
+                timezone = timezone,
+                languages = listOf(Language(name = language, code = ""))
+            ),
+            tags = tags,
+            timezone = timezone,
+            currency = currency,
+            language = language
+        )
     }
 
     // Function to fetch dynamic city data for cities not in static JSON
@@ -126,34 +210,36 @@ class DetailsViewModel @Inject constructor(
     }
 
     fun toggleLike(city: String, destination: String) {
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
-            Log.e("DetailsViewModel", "User not logged in - cannot save destination")
-            // TODO: Show login prompt or navigate to login screen
-            return
-        }
-        
-        val destinationId = "${city}_$destination"
-        
-        Log.d("DetailsViewModel", "toggleLike called for: city=$city, destination=$destination, userId=$userId")
-        
         viewModelScope.launch {
+            val userId = appPreferences.getUserEmailOnce()
+            if (userId.isNullOrBlank()) {
+                Log.e("DetailsViewModel", "User not logged in - cannot save destination")
+                return@launch
+            }
+        
+            val destinationId = "${city}_$destination"
+        
+            Log.d("DetailsViewModel", "toggleLike called for: city=$city, destination=$destination, userId=$userId")
+        
             try {
                 val isCurrentlySaved = savedDestinationDao.isDestinationSaved(destinationId, userId)
                 Log.d("DetailsViewModel", "Current saved status: $isCurrentlySaved")
                 
                 if (isCurrentlySaved) {
-                    // Unsave the destination
+                    // Unsave locally
                     savedDestinationDao.unsaveDestination(destinationId, userId)
-                    
-                    // Note: We don't remove from chat room immediately when unsaving
-                    // Users might want to keep chatting even after unsaving
-                    // The chat room cleanup is handled by the removeExpiredParticipants function
-                    
                     isLiked = false
-                    Log.d("DetailsViewModel", "Destination unsaved: $destinationId")
+                    Log.d("DetailsViewModel", "Destination unsaved locally: $destinationId")
+
+                    // Unsave on backend
+                    try {
+                        destinationsRepository.unsaveDestination(destinationId)
+                        Log.d("DetailsViewModel", "Destination unsaved on backend: $destinationId")
+                    } catch (e: Exception) {
+                        Log.e("DetailsViewModel", "Error unsaving on backend: ${e.message}", e)
+                    }
                 } else {
-                    // Save the destination
+                    // Save locally
                     val savedDestination = SavedDestinationEntity(
                         destinationId = destinationId,
                         city = city,
@@ -164,12 +250,21 @@ class DetailsViewModel @Inject constructor(
                     
                     try {
                         savedDestinationDao.saveDestination(savedDestination)
-                        Log.d("DetailsViewModel", "Successfully saved destination to database")
+                        Log.d("DetailsViewModel", "Successfully saved destination to local database")
                         
-                        // Create chat room for this destination
+                        // Save on backend
+                        val destinationName = "$city, $destination"
+                        try {
+                            destinationsRepository.saveDestination(destinationId, destinationName)
+                            Log.d("DetailsViewModel", "Destination saved on backend: $destinationId")
+                        } catch (e: Exception) {
+                            Log.e("DetailsViewModel", "Error saving on backend: ${e.message}", e)
+                        }
+
+                        // Create/join chat room for this destination
                         try {
                             val destinationName = "$city, $destination"
-                            chatRepository.joinDestinationChat(destinationId, destinationName)
+                            chatRepository.createGroupRoom(destinationName, listOf(userId))
                             Log.d("DetailsViewModel", "Chat room created for destination: $destinationId")
                         } catch (e: Exception) {
                             Log.e("DetailsViewModel", "Error creating chat room: ${e.message}", e)
@@ -188,16 +283,16 @@ class DetailsViewModel @Inject constructor(
     }
 
     fun checkIfSaved(city: String, destination: String) {
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
-            Log.e("DetailsViewModel", "User not logged in - cannot check saved status")
-            isLiked = false
-            return
-        }
-        
-        val destinationId = "${city}_$destination"
-        
         viewModelScope.launch {
+            val userId = appPreferences.getUserEmailOnce()
+            if (userId.isNullOrBlank()) {
+                Log.e("DetailsViewModel", "User not logged in - cannot check saved status")
+                isLiked = false
+                return@launch
+            }
+        
+            val destinationId = "${city}_$destination"
+        
             try {
                 isLiked = savedDestinationDao.isDestinationSaved(destinationId, userId)
                 Log.d("DetailsViewModel", "Checked saved status for $destinationId: $isLiked")
@@ -209,22 +304,13 @@ class DetailsViewModel @Inject constructor(
     }
 
     fun getDescription(cityName: String) {
-        val prompt = "Describe $cityName in a very short paragraph(should not exceed 50 words). Mention only the most important aspects for tourists. It should be informative and should not contain language and currency information"
-        val parameters = mapOf(
-            "temperature" to 0.7,
-            "max_new_tokens" to 1000,
-            "top_p" to 0.85,
-            "do_sample" to true,
-            "num_beams" to 3
-        )
-        val task = AITask.CityInfoTextGeneration
         viewModelScope.launch {
             _descriptionState.value = ItineraryState.Loading
 
             // Check InMemory Cache
             descriptionMemoryCache.get(cityName)?.let {
                 _descriptionState.value = ItineraryState.Success(it)
-                Log.e("Caching", "Cached-Data Used: $it")
+                Log.d("Caching", "Cached-Data Used: $it")
                 return@launch
             }
 
@@ -232,46 +318,35 @@ class DetailsViewModel @Inject constructor(
             cityDescriptionDao.getDescription(cityName)?.let {
                 descriptionMemoryCache.put(cityName, it.description)
                 _descriptionState.value = ItineraryState.Success(it.description)
-                Log.e("Caching", "Database Used: ${it.description}")
+                Log.d("Caching", "Database Used: ${it.description}")
                 return@launch
             }
 
-            // Otherwise make API call
-            defaultHuggingFaceRepository.getAIResponse(task, prompt, parameters).collect { result ->
-                _descriptionState.value = result.fold(
-                    onSuccess = { response ->
-                        val generatedText = response[0].generatedText
-                        val cleanedText = generatedText.replace(prompt, "").trim().replace(Regex("^\\s*\\.\\s*"), "")
-                        descriptionMemoryCache.put(cityName, cleanedText)
-                        cityDescriptionDao.insertDescription(
-                            CityDescriptionEntity(cityName, cleanedText)
-                        )
-                        Log.e("Caching", "API Calling Used: $cleanedText")
-                        ItineraryState.Success(cleanedText)
-                    },
-                    onFailure = { ItineraryState.Error(it.message ?: "Unknown error") }
+            // Fetch from backend InsightController
+            try {
+                val insights = aiRepository.getCityInsights(cityName)
+                val description = insights.description
+                descriptionMemoryCache.put(cityName, description)
+                cityDescriptionDao.insertDescription(
+                    CityDescriptionEntity(cityName, description)
                 )
+                Log.d("Caching", "Backend API Used: $description")
+                _descriptionState.value = ItineraryState.Success(description)
+            } catch (e: Exception) {
+                Log.e("DetailsViewModel", "Error fetching description: ${e.message}", e)
+                _descriptionState.value = ItineraryState.Error(e.message ?: "Unknown error")
             }
         }
     }
 
     fun getCulturalTips(cityName: String) {
-        val prompt = "Provide 5 essential cultural tips for tourists visiting $cityName. Each tip should contain not more than 30 words. Format each tip as a separate bullet point. Include information about local customs, etiquette, social norms, and important cultural behaviors to respect. Do not include language and currency information."
-        val parameters = mapOf(
-            "temperature" to 0.8,  // Slightly higher for more creative tips
-            "max_new_tokens" to 400,  // Increased to accommodate multiple bullet points
-            "top_p" to 0.9,  // Increased for more diverse responses
-            "do_sample" to true,
-            "num_beams" to 4  // Increased for better structured output
-        )
-        val task = AITask.CityInfoTextGeneration
         viewModelScope.launch {
             _culturalTipsState.value = ItineraryState.Loading
 
             // Check in-memory cache
             tipsMemoryCache.get(cityName)?.let {
                 _culturalTipsState.value = ItineraryState.Success(it)
-                Log.e("Caching", "Cached-Data Used: $it")
+                Log.d("Caching", "Cached-Data Used: $it")
                 return@launch
             }
 
@@ -279,33 +354,24 @@ class DetailsViewModel @Inject constructor(
             culturalTipsDao.getTip(cityName)?.let {
                 tipsMemoryCache.put(cityName, it.response)
                 _culturalTipsState.value = ItineraryState.Success(it.response)
-                Log.e("Caching", "Database Used: ${it.response}")
+                Log.d("Caching", "Database Used: ${it.response}")
                 return@launch
             }
 
-            // Otherwise make API call
-            defaultHuggingFaceRepository.getAIResponse(task, prompt, parameters).collect { result ->
-                _culturalTipsState.value = result.fold(
-                    onSuccess = { response ->
-                        val generatedText = response[0].generatedText
-                        val cleanedText = generatedText.replace(prompt, "").trim()
-                        val bulletPointText = if (!cleanedText.contains("•")) {
-                            cleanedText.split("\n")
-                                .filter { it.isNotEmpty() }
-                                .joinToString("\n") { "${it.trim()}" }
-                        } else {
-                            cleanedText
-                        }
-                        // Cache in memory and database
-                        tipsMemoryCache.put(cityName, bulletPointText)
-                        culturalTipsDao.insertTips(
-                            CulturalTipsEntity(cityName, bulletPointText)
-                        )
-                        Log.e("Caching", "API Calling Used: $bulletPointText")
-                        ItineraryState.Success(bulletPointText)
-                    },
-                    onFailure = { ItineraryState.Error(it.message ?: "Unknown error") }
+            // Fetch from backend InsightController
+            try {
+                val insights = aiRepository.getCityInsights(cityName)
+                val bulletPointText = insights.culturalTips.joinToString("\n") { "• $it" }
+                // Cache in memory and database
+                tipsMemoryCache.put(cityName, bulletPointText)
+                culturalTipsDao.insertTips(
+                    CulturalTipsEntity(cityName, bulletPointText)
                 )
+                Log.d("Caching", "Backend API Used: $bulletPointText")
+                _culturalTipsState.value = ItineraryState.Success(bulletPointText)
+            } catch (e: Exception) {
+                Log.e("DetailsViewModel", "Error fetching cultural tips: ${e.message}", e)
+                _culturalTipsState.value = ItineraryState.Error(e.message ?: "Unknown error")
             }
         }
     }
@@ -314,7 +380,7 @@ class DetailsViewModel @Inject constructor(
         viewModelScope.launch {
             _photosState.value = PexelsUiState.Loading
             try {
-                val response = pexelsRepository.getPexelsPhotos(query)
+                val response = pexelsRepository.getBackendPhotos(query)
                 _photosState.value = PexelsUiState.Success(response.photos)
             } catch (e: Exception) {
                 _photosState.value = PexelsUiState.Error(e.message ?: "Unknown error")
@@ -326,7 +392,7 @@ class DetailsViewModel @Inject constructor(
         viewModelScope.launch {
             _videosState.value = PexelsVideoUiState.Loading
             try {
-                val response = pexelsRepository.getPexelsVideos(query)
+                val response = pexelsRepository.getBackendVideos(query)
                 _videosState.value = PexelsVideoUiState.Success(response.videos)
             } catch (e: Exception) {
                 _videosState.value = PexelsVideoUiState.Error(e.message ?: "Unknown error")
@@ -358,11 +424,11 @@ class DetailsViewModel @Inject constructor(
                 val count = savedDestinationDao.getSavedDestinationsCount()
                 Log.d("DetailsViewModel", "Database test - Total saved destinations: $count")
                 
-                val currentUser = auth.currentUser
-                Log.d("DetailsViewModel", "Database test - Current user: ${currentUser?.uid ?: "Not logged in"}")
+                val userId = appPreferences.getUserEmailOnce()
+                Log.d("DetailsViewModel", "Database test - Current user: ${userId ?: "Not logged in"}")
                 
-                if (currentUser != null) {
-                    val userDestinations = savedDestinationDao.getAllSavedDestinations(currentUser.uid)
+                if (!userId.isNullOrBlank()) {
+                    val userDestinations = savedDestinationDao.getAllSavedDestinations(userId)
                     Log.d("DetailsViewModel", "Database test - User destinations: ${userDestinations.size}")
                 }
             } catch (e: Exception) {

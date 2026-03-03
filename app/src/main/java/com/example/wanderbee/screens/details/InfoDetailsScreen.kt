@@ -52,9 +52,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.wanderbee.utils.DetailsScreenTopBar
 import com.example.wanderbee.R
-import com.example.wanderbee.data.remote.apiService.JsonResponses
-import com.example.wanderbee.data.remote.models.destinations.Destination
-import com.example.wanderbee.data.remote.models.destinations.IndianDestination
 import com.example.wanderbee.data.remote.models.weather.DailyWeather
 import com.example.wanderbee.navigation.WanderBeeScreens
 import com.example.wanderbee.screens.chat.ChatViewModel
@@ -77,40 +74,13 @@ fun InfoDetailsScreen(navController: NavController,
     var timezone by remember { mutableStateOf<String?>("") }
     var tags by remember { mutableStateOf<Any>("") }
     var language by remember { mutableStateOf<String?>("") }
-    val context = LocalContext.current
 
     // Get dynamic city data state
     val cityDataState by detailsViewModel.cityDataState.collectAsState()
 
     LaunchedEffect(city) {
-        val cityInfo = JsonResponses().getCityInfo(context, city)
-        
-        if (cityInfo != null) {
-            // Use static JSON data
-            currency = when (cityInfo) {
-                is IndianDestination -> cityInfo.currency
-                is Destination -> cityInfo.currency
-                else -> "Unknown"
-            }
-            timezone = when (cityInfo) {
-                is IndianDestination -> cityInfo.timezone
-                is Destination -> cityInfo.timezone
-                else -> "Unknown"
-            }
-            tags = when (cityInfo) {
-                is IndianDestination -> cityInfo.tags
-                is Destination -> cityInfo.tags
-                else -> "Unknown"
-            }
-            language = when (cityInfo) {
-                is IndianDestination -> cityInfo.language
-                is Destination -> cityInfo.language
-                else -> "Unknown"
-            }
-        } else {
-            // City not in static JSON, fetch dynamic data
-            detailsViewModel.fetchDynamicCityData(city, dest)
-        }
+        // Fetch city info from backend static endpoints, falls back to dynamic data
+        detailsViewModel.fetchStaticCityInfo(city, dest)
     }
 
     // Update with dynamic data when available

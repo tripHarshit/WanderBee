@@ -49,7 +49,7 @@ fun SplashScreen(
     
     val scaleAnim = animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0.3f,
-        animationSpec = tween(durationMillis = 2000, easing = EaseOutBack)
+        animationSpec = tween(durationMillis = 2000, easing = EaseOutCubic)
     )
     
     val slideAnim = animateDpAsState(

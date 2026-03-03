@@ -34,10 +34,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.wanderbee.data.remote.models.AI.ItineraryItem
+import com.example.wanderbee.data.remote.models.AI.Activity
 import com.example.wanderbee.utils.GeneratedItineraryTopBar
 import com.example.wanderbee.R
-import com.example.wanderbee.data.remote.models.AI.TimeSlot
 import com.example.wanderbee.navigation.WanderBeeScreens
 
 
@@ -162,7 +161,7 @@ fun ItineraryDayScreen(
                         verticalAlignment = Alignment.CenterVertically) {
 
                         Text(
-                            text = currentDay.date,
+                            text = currentDay.theme,
                             fontFamily = FontFamily(Font(R.font.istokweb_regular)),
                             fontSize = 16.sp,
                             style = MaterialTheme.typography.bodyMedium,
@@ -171,7 +170,7 @@ fun ItineraryDayScreen(
                         Spacer(modifier = Modifier.weight(1f))
 
                         Text(
-                            text = currentDay.totalCost,
+                            text = currentDay.estimatedDailyCost,
                             fontFamily = FontFamily(Font(R.font.istokweb_regular)),
                             fontSize = 16.sp,
                             style = MaterialTheme.typography.bodyMedium,
@@ -181,11 +180,11 @@ fun ItineraryDayScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Time Slot Cards
+                    // Activity Cards
                     LazyColumn {
-                        items(currentDay.timeSlots) { slot ->
-                            Log.d("ItineraryScreen", "Rendering slot: $slot")
-                             ItineraryCard(slot = slot)
+                        items(currentDay.activities) { activity ->
+                            Log.d("ItineraryScreen", "Rendering activity: $activity")
+                            ActivityCard(activity = activity)
                         }
                     }
                 }
@@ -201,7 +200,7 @@ fun ItineraryDayScreen(
 }
 
 @Composable
-fun ItineraryCard(slot: TimeSlot) {
+fun ActivityCard(activity: Activity) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -211,32 +210,26 @@ fun ItineraryCard(slot: TimeSlot) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = slot.time,
+                text = activity.time,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.secondary
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = slot.activity,
+                text = activity.title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Location: ${slot.location}",
+                text = activity.description,
                 style = MaterialTheme.typography.bodySmall
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Cost: ${slot.cost}",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = "Transport: ${slot.transportation}",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = "Dining: ${slot.dining}",
-                style = MaterialTheme.typography.bodySmall
+                text = activity.locationHint,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
             )
         }
     }

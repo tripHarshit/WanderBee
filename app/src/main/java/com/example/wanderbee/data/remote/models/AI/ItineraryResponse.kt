@@ -1,28 +1,29 @@
 package com.example.wanderbee.data.remote.models.AI
 
+/**
+ * Matches backend: destination-service → itinerary.dto.ItineraryResponse
+ * Returned by GET /api/v1/itinerary/generate
+ */
 data class ItineraryResponse(
-    val days: List<ItineraryDay>,
-    val accommodation: Accommodation,
-    val localDishes: List<String>
+    val tripTitle: String,
+    val destination: String,
+    val duration: String,
+    val budgetRange: String,
+    val numberOfTravellers: Int,
+    val totalEstimatedTripCost: String,
+    val days: List<DayPlan>
 )
 
-data class ItineraryDay(
+data class DayPlan(
     val dayNumber: Int,
-    val date: String,
-    val totalCost: String,
-    val timeSlots: List<TimeSlot>
+    val theme: String,
+    val estimatedDailyCost: String,
+    val activities: List<Activity>
 )
 
-data class TimeSlot(
+data class Activity(
     val time: String,
-    val activity: String,
-    val location: String,
-    val cost: String,
-    val transportation: String,
-    val dining: String
-)
-
-data class Accommodation(
-    val budget: String,
-    val recommendation: String
+    val title: String,
+    val description: String,
+    val locationHint: String
 )

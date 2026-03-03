@@ -4,6 +4,7 @@ import com.example.wanderbee.data.remote.models.media.PexelsPhoto
 import com.example.wanderbee.data.remote.models.media.PexelsPhotoResponse
 import com.example.wanderbee.data.remote.models.media.PexelsSrc
 import com.example.wanderbee.data.repository.DefaultPexelsRepository
+import com.example.wanderbee.data.remote.apiService.GeoDbApiService
 import com.example.wanderbee.screens.home.HomeScreenViewModel
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -25,6 +26,7 @@ import org.junit.Test
 class HomeScreenViewModelTest{
 
     lateinit var defaultPexelsRepository: DefaultPexelsRepository
+    lateinit var geoDbApiService: GeoDbApiService
     lateinit var viewModel: HomeScreenViewModel
 
     val testDispatcher = UnconfinedTestDispatcher()
@@ -33,8 +35,10 @@ class HomeScreenViewModelTest{
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         defaultPexelsRepository = mockk()
+        geoDbApiService = mockk()
         viewModel = HomeScreenViewModel(
-            defaultPexelsRepository
+            defaultPexelsRepository,
+            geoDbApiService
         )
     }
 
@@ -50,7 +54,9 @@ class HomeScreenViewModelTest{
             PexelsPhoto(
                 id = it,
                 src = PexelsSrc(
-                    medium = "http://example.com/image$it.jpg)"
+                    medium = "http://example.com/image$it.jpg",
+                    large = "http://example.com/large$it.jpg",
+                    original = "http://example.com/original$it.jpg"
                 ))
         }
         val mockResponse = PexelsPhotoResponse(photos = mockPhotoList)

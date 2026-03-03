@@ -15,16 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.example.wanderbee.data.remote.models.chat.ChatMessage
-import com.example.wanderbee.data.remote.models.chat.ChatUser
 import com.example.wanderbee.screens.chat.getRelativeTime
 
 @Composable
 fun MessageBubble(
     message: ChatMessage,
     isCurrentUser: Boolean,
-    sender: ChatUser?,
     onMessageClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -41,30 +38,19 @@ fun MessageBubble(
         verticalAlignment = Alignment.Bottom
     ) {
         if (!isCurrentUser) {
-            // Avatar
-            if (sender?.photoUrl != null) {
-                AsyncImage(
-                    model = sender.photoUrl,
-                    contentDescription = "Avatar",
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onBackground)
+            // Avatar placeholder
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.background
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onBackground),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.background
-                    )
-                }
             }
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -73,7 +59,7 @@ fun MessageBubble(
         ) {
             if (!isCurrentUser) {
                 Text(
-                    text = sender?.name ?: message.senderName,
+                    text = message.senderId,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
@@ -86,13 +72,13 @@ fun MessageBubble(
                     .padding(12.dp)
             ) {
                 Text(
-                    text = message.text,
+                    text = message.content,
                     color = textColor,
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
             Text(
-                text = getRelativeTime(message.timestamp.toDate().time),
+                text = formatTimestamp(message.timestamp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 2.dp, end = 2.dp)
@@ -115,4 +101,18 @@ fun MessageBubble(
             }
         }
     }
-} 
+}
+
+/** Parse ISO‑8601 timestamp to epoch millis, then format as relative time. */
+private fun formatTimestamp(isoTimestamp: String?): String {
+    if (isoTimestamp.isNullOrEmpty()) return ""
+    return try {
+        val millis = java.time.LocalDateTime.parse(isoTimestamp)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+        getRelativeTime(millis)
+    } catch (e: Exception) {
+        ""
+    }
+}

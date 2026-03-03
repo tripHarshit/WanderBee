@@ -71,8 +71,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.wanderbee.navigation.WanderBeeScreens
-import com.example.wanderbee.screens.authentication.AuthViewModel
-import com.example.wanderbee.screens.details.ItineraryState
 import com.example.wanderbee.ui.theme.WanderBeeTheme
 import com.example.wanderbee.utils.BottomNavigationBar
 import com.example.wanderbee.utils.ItineraryTopBar
@@ -234,8 +232,6 @@ fun PlanItineraryScreen(
                     onClick = {
                         viewModel.getGeneratedItinerary(
                             destination = city,
-                            startDate = startDate.toString(),
-                            endDate = endDate.toString(),
                             duration = days.split(" ")[0].toInt(),
                             preferences = finalPreferenceList,
                             travellers = travelers.toInt(),

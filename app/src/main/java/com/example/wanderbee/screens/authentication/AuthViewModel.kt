@@ -1,40 +1,32 @@
 package com.example.wanderbee.screens.authentication
 
 import android.util.Log
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.wanderbee.data.remote.apiService.IdentityApiService
+import com.example.wanderbee.data.remote.models.auth.AuthRequest
+import com.example.wanderbee.data.remote.models.auth.GoogleTokenRequest
+import com.example.wanderbee.data.remote.models.auth.UserCredentials
+import com.example.wanderbee.utils.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.net.SocketTimeoutException
 import javax.inject.Inject
-import com.example.wanderbee.data.local.dao.ProfileDao
-import com.example.wanderbee.data.repository.ImgBBRepository
-import com.example.wanderbee.screens.profile.ProfileData
-import com.example.wanderbee.screens.profile.toProfileEntity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 
 sealed class State {
     object Idle : State()
     object Success : State()
-    object Error : State()
+    data class Error(val message: String) : State()
     object Loading : State()
 }
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val firebaseAuth: FirebaseAuth,
-    private val firebaseFireStore: FirebaseFirestore,
-    private val profileDao: ProfileDao,
-    private val imgBBRepository: ImgBBRepository,
+    private val identityApi: IdentityApiService,
+    private val appPreferences: AppPreferences,
     private val notificationManager: com.example.wanderbee.utils.NotificationManager
 ) : ViewModel() {
 
@@ -59,125 +51,135 @@ class AuthViewModel @Inject constructor(
     fun updateName(newName: String) {
         _name.value = newName
     }
-    fun updateEmail(email: String){
+    fun updateEmail(email: String) {
         _email.value = email
     }
-    fun updatePass(password: String){
+    fun updatePass(password: String) {
         _password.value = password
     }
 
     fun signInWithEmailAndPassword(email: String, password: String) {
-        if (email.trim().isEmpty() || password.trim().isEmpty()){
-            _loginState.value = State.Error
-        } else {
-            _loginState.value = State.Loading
-            firebaseAuth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
+        if (email.trim().isEmpty() || password.trim().isEmpty()) {
+            _loginState.value = State.Error("Please fill in all fields")
+            return
+        }
+        _loginState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val response = identityApi.login(AuthRequest(email.trim(), password))
+                if (response.isSuccessful) {
+                    val jwt = response.body()
+                    if (!jwt.isNullOrBlank()) {
+                        appPreferences.saveJwtToken(jwt)
+                        appPreferences.saveUserInfo(email.trim(), "")
                         _loginState.value = State.Success
-                        // Get and store FCM token after successful login
-                        viewModelScope.launch {
-                            notificationManager.getAndStoreFCMToken()
-                        }
+                        notificationManager.getAndStoreFCMToken()
                     } else {
-                        _loginState.value = State.Error
+                        _loginState.value = State.Error("Invalid credentials")
                     }
+                } else {
+                    _loginState.value = State.Error("Invalid credentials")
                 }
+            } catch (e: SocketTimeoutException) {
+                _loginState.value = State.Error("Connection timed out. Please try again")
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Login failed", e)
+                _loginState.value = State.Error("Connection failed. Is the server running?")
+            }
         }
     }
 
-
     fun signUpWithEmailAndPassword(email: String, password: String, name: String) {
-        if (email.trim().isEmpty() || password.trim().isEmpty() || name.trim().isEmpty() ){
-            _signUpState.value = State.Error
-        }else {
-            _signUpState.value = State.Loading
-            firebaseAuth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        _signUpState.value = State.Success
-                        _name.value = name
-                        firebaseAuth.currentUser?.uid?.let { uid ->
-                            firebaseFireStore.collection("users")
-                                .document(uid)
-                                .set(mapOf("name" to name))
-                        }
-                        // Get and store FCM token after successful signup
-                        viewModelScope.launch {
-                            notificationManager.getAndStoreFCMToken()
-                        }
+        if (email.trim().isEmpty() || password.trim().isEmpty() || name.trim().isEmpty()) {
+            _signUpState.value = State.Error("Please fill in all fields")
+            return
+        }
+        _signUpState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val response = identityApi.register(
+                    UserCredentials(
+                        name = name.trim(),
+                        email = email.trim(),
+                        password = password
+                    )
+                )
+                if (response.isSuccessful) {
+                    val body = response.body() ?: ""
+                    if (body.contains("already exists", ignoreCase = true)) {
+                        _signUpState.value = State.Error("User already exists")
                     } else {
-                        _signUpState.value = State.Error
+                        _name.value = name
+                        _signUpState.value = State.Success
+                        // Auto-login after successful registration
+                        signInAfterRegister(email.trim(), password)
                     }
+                } else {
+                    _signUpState.value = State.Error("Registration failed. Please try again")
                 }
+            } catch (e: SocketTimeoutException) {
+                _signUpState.value = State.Error("Connection timed out. Please try again")
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Registration failed", e)
+                _signUpState.value = State.Error("Connection failed. Is the server running?")
+            }
+        }
+    }
+
+    private suspend fun signInAfterRegister(email: String, password: String) {
+        try {
+            val response = identityApi.login(AuthRequest(email, password))
+            if (response.isSuccessful) {
+                val jwt = response.body()
+                if (!jwt.isNullOrBlank()) {
+                    appPreferences.saveJwtToken(jwt)
+                    appPreferences.saveUserInfo(email, _name.value)
+                    notificationManager.getAndStoreFCMToken()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AuthViewModel", "Auto-login after register failed", e)
         }
     }
 
     fun signInWithGoogle(idToken: String) {
-        val credential = GoogleAuthProvider.getCredential(idToken, null)
-        firebaseAuth.signInWithCredential(credential)
-            .addOnSuccessListener {
-                Log.d("AuthViewModel", "Google Sign-In Successful")
-                _loginState.value = State.Success
-                firebaseAuth.currentUser?.uid?.let { uid ->
-                    firebaseFireStore.collection("users")
-                        .document(uid)
-                        .set(mapOf("name" to firebaseAuth.currentUser?.displayName))
+        _loginState.value = State.Loading
+        viewModelScope.launch {
+            try {
+                val response = identityApi.googleLogin(GoogleTokenRequest(idToken))
+                if (response.isSuccessful) {
+                    val googleAuth = response.body()
+                    if (googleAuth != null) {
+                        appPreferences.saveJwtToken(googleAuth.token)
+                        appPreferences.saveUserInfo(googleAuth.email, googleAuth.name)
+                        _name.value = googleAuth.name
+                        _loginState.value = State.Success
+                        notificationManager.getAndStoreFCMToken()
+                    } else {
+                        _loginState.value = State.Error("Google sign-in failed")
+                    }
+                } else {
+                    _loginState.value = State.Error("Google sign-in failed")
                 }
-                // Sync Google profile to Firestore and Room
-                syncGoogleProfile()
-                // Get and store FCM token after successful Google sign-in
-                viewModelScope.launch {
-                    notificationManager.getAndStoreFCMToken()
-                }
+            } catch (e: SocketTimeoutException) {
+                _loginState.value = State.Error("Connection timed out. Please try again")
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Google Sign-In Failed", e)
+                _loginState.value = State.Error("Connection failed. Is the server running?")
             }
-            .addOnFailureListener { exception ->
-                Log.e("AuthViewModel", "Google Sign-In Failed", exception)
-                _loginState.value = State.Error
-            }
-    }
-
-    private fun syncGoogleProfile() {
-        val user = firebaseAuth.currentUser ?: return
-        val userId = user.uid
-        CoroutineScope(Dispatchers.IO).launch {
-            val profileData = ProfileData(
-                userId = userId,
-                name = user.displayName ?: "",
-                email = user.email ?: "",
-                profilePictureUrl = user.photoUrl?.toString() ?: "",
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis()
-            )
-            // Update Firestore
-            firebaseFireStore.collection("users").document(userId).set(profileData)
-            // Update Room
-            profileDao.insertProfile(profileData.toProfileEntity())
         }
     }
 
     fun sendPasswordResetEmail(email: String) {
-        _forgotState.value = State.Loading
-        firebaseAuth.sendPasswordResetEmail(email)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    _forgotState.value = State.Success
-                } else {
-                    _forgotState.value = State.Error
-                }
-            }
+        // Password reset is not yet supported by the backend.
+        // This is a placeholder for future implementation.
+        _forgotState.value = State.Error("Password reset is not yet available")
     }
 
     fun logout() {
         viewModelScope.launch {
-            // Delete FCM token before logging out
             notificationManager.deleteFCMToken()
-            // Sign out from Firebase
-            firebaseAuth.signOut()
+            appPreferences.clearSession()
         }
     }
 }
-
-// check if auth viewmodel is correct as State.error is introduced when parameters are empty
-//also keep it for login screen
-//handle the states and print apt messages below text fields when error state is present

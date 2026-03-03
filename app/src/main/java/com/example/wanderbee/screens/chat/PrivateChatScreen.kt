@@ -17,12 +17,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.wanderbee.data.remote.models.chat.ChatUser
 import com.example.wanderbee.utils.MessageBubble
 import com.example.wanderbee.utils.MessageInput
 import com.example.wanderbee.utils.InnerChatScreenTopBar
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
@@ -34,36 +31,27 @@ fun PrivateChatScreen(
     val messages by chatViewModel.privateMessages.collectAsState()
     var input by remember { mutableStateOf("") }
     var isSending by remember { mutableStateOf(false) }
-    var isRefreshing by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
-    val coroutineScope = rememberCoroutineScope()
     val currentUserId = chatViewModel.getCurrentUserId()
-    val userCache = remember { mutableStateMapOf<String, ChatUser>() }
-    var otherUserName by remember { mutableStateOf<String?>(null) }
 
-    // Listen to private messages
+    // Load message history for this room
     LaunchedEffect(chatId) {
-        chatViewModel.listenToPrivateMessagesByChatId(chatId)
+        chatViewModel.listenToPrivateMessagesByRoomId(chatId)
     }
 
-    // Fetch the other user's name for the heading
-    LaunchedEffect(chatId) {
-        val currentUserId = chatViewModel.getCurrentUserId()
-        if (currentUserId != null) {
-            val firestore = FirebaseFirestore.getInstance()
-            val chatDoc = firestore.collection("privateChats").document(chatId).get().await()
-            val users = chatDoc.get("users") as? List<*> ?: emptyList<String>()
-            val otherUserId = users.filterIsInstance<String>().firstOrNull { it != currentUserId }
-            if (otherUserId != null) {
-                val userDoc = firestore.collection("users").document(otherUserId).get().await()
-                otherUserName = userDoc.getString("displayName") ?: userDoc.getString("name") ?: "User"
-            }
+    // Derive the other user's ID from the messages (the senderId that isn't us)
+    val otherUserId by remember(messages, currentUserId) {
+        derivedStateOf {
+            messages.firstOrNull { it.senderId != currentUserId }?.senderId
         }
     }
 
     Scaffold(
         topBar = {
-            InnerChatScreenTopBar(navController = navController, heading = otherUserName ?: "Private Chat")
+            InnerChatScreenTopBar(
+                navController = navController,
+                heading = otherUserId ?: "Private Chat"
+            )
         }
     ) { padding ->
         Column(
@@ -79,7 +67,6 @@ fun PrivateChatScreen(
                     .fillMaxWidth()
             ) {
                 if (messages.isEmpty()) {
-                    // Empty state
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -98,41 +85,30 @@ fun PrivateChatScreen(
                             vertical = 8.dp
                         )
                     ) {
-                        itemsIndexed(messages.reversed()) { idx, msg ->
+                        itemsIndexed(messages.reversed()) { _, msg ->
                             val isCurrentUser = msg.senderId == currentUserId
-                            val sender = userCache[msg.senderId] ?: ChatUser(
-                                id = msg.senderId,
-                                name = msg.senderName
-                            )
                             MessageBubble(
                                 message = msg,
-                                isCurrentUser = isCurrentUser,
-                                sender = sender
+                                isCurrentUser = isCurrentUser
                             )
                         }
                     }
                 }
-
-                if (isRefreshing) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.TopCenter
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
-                }
             }
 
-            // Message input at the bottom of content area
+            // Message input
             MessageInput(
                 value = input,
                 onValueChange = { input = it },
                 onSend = {
-                    isSending = true
-                    chatViewModel.sendPrivateMessageByChatId(chatId, input)
-                    input = ""
-                    isSending = false
-                    focusManager.clearFocus()
+                    val recipient = otherUserId
+                    if (recipient != null) {
+                        isSending = true
+                        chatViewModel.sendPrivateMessage(chatId, recipient, input)
+                        input = ""
+                        isSending = false
+                        focusManager.clearFocus()
+                    }
                 },
                 isSending = isSending,
                 modifier = Modifier.fillMaxWidth().padding(12.dp)

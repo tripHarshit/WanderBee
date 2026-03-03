@@ -1,274 +1,162 @@
 package com.example.wanderbee.data.repository
 
 import android.util.Log
-import com.example.wanderbee.data.remote.models.chat.ChatMessage
-import com.example.wanderbee.data.remote.models.chat.ChatPreview
-import com.google.firebase.Timestamp
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import kotlinx.coroutines.tasks.await
+import com.example.wanderbee.data.remote.StompClient
+import com.example.wanderbee.data.remote.apiService.ChatApiService
+import com.example.wanderbee.data.remote.models.chat.*
+import com.example.wanderbee.utils.AppPreferences
+import com.example.wanderbee.utils.Resource
+import kotlinx.coroutines.flow.first
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
-
+/**
+ * Chat repository interface.
+ *
+ * Every method talks to the backend chat-service via REST ([ChatApiService]).
+ * All list/object responses are wrapped in [Resource] so ViewModels can
+ * distinguish network errors, server errors, and success without scattered
+ * try/catch blocks.
+ */
 interface ChatRepository {
 
-    suspend fun joinDestinationChat(destinationId: String, destinationName: String)
-
-    suspend fun removeExpiredParticipants(destinationId: String)
-
-    suspend fun sendGroupMessage(destinationId: String, message: ChatMessage)
-
-    fun listenToGroupMessages(destinationId: String, onMessages: (List<ChatMessage>) -> Unit): ListenerRegistration
-
-    suspend fun getOrCreatePrivateChat(userId1: String, userId2: String): String
-
-    suspend fun sendPrivateMessage(chatId: String, message: ChatMessage)
-
-    fun listenToPrivateMessages(chatId: String, onMessages: (List<ChatMessage>) -> Unit): ListenerRegistration
-
-    suspend fun getGroupChatPreviews(userId: String): List<ChatPreview>
-
-    suspend fun getPrivateChatPreviews(userId: String): List<ChatPreview>
-
-    suspend fun getUserDetails(userId: String): com.example.wanderbee.data.remote.models.chat.ChatUser
+    suspend fun getRooms(): Resource<List<ChatRoom>>
+    suspend fun createGroupRoom(name: String, participantIds: List<String>): Resource<ChatRoom>
+    suspend fun createPrivateRoom(otherUserId: String): Resource<ChatRoom>
+    suspend fun getMessages(roomId: String): Resource<List<ChatMessage>>
+    suspend fun sendMessage(request: SendMessageRequest): Resource<ChatMessage>
+    suspend fun deleteMessage(messageId: String, roomId: String): Resource<Unit>
+    suspend fun leaveRoom(roomId: String): Resource<ChatRoom>
+    suspend fun getCurrentUserId(): String?
+    suspend fun getChatPreviews(): Resource<List<ChatPreview>>
 }
+
 
 class DefaultChatRepository @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val chatApiService: ChatApiService,
+    private val appPreferences: AppPreferences
 ) : ChatRepository {
 
-    override suspend fun joinDestinationChat(destinationId: String, destinationName: String) {
-        val userId = auth.currentUser?.uid ?: return
-        val chatRoomRef = firestore.collection("chatRooms").document(destinationId)
-
-        firestore.runTransaction { transaction ->
-
-            val snapshot = transaction.get(chatRoomRef)
-
-            val participants = (snapshot.get("participants") as? List<*>)?.filterIsInstance<String>()?.toMutableList() ?: mutableListOf()
-
-            // Get joinDates as map string to Firestore Timestamp
-            val joinDatesMap = snapshot.get("participantJoinDates") as? Map<String, Any> ?: emptyMap()
-            val joinDates = mutableMapOf<String, com.google.firebase.Timestamp>()
-
-            joinDatesMap.forEach { (key, value) ->
-                when (value) {
-                    is com.google.firebase.Timestamp -> joinDates[key] = value
-                    is java.util.Date -> joinDates[key] = com.google.firebase.Timestamp(value)
-                    is Long -> joinDates[key] = com.google.firebase.Timestamp(java.util.Date(value))
-                    else -> { /* ignore */ }
-                }
-            }
-
-            if (!participants.contains(userId)) {
-                participants.add(userId)
-                joinDates[userId] = com.google.firebase.Timestamp.now()
-            }
-
-            val data = mapOf(
-                "id" to destinationId,
-                "destinationName" to destinationName,
-                "participants" to participants,
-                "participantJoinDates" to joinDates,
-                "createdAt" to com.google.firebase.Timestamp.now()
-            )
-
-            if (!snapshot.exists()) {
-                transaction.set(chatRoomRef, data)
-                Log.d("ChatRepository", "Created new chat room for $destinationId with participants: $participants")
-            } else {
-                transaction.update(chatRoomRef, mapOf(
-                    "participants" to participants,
-                    "participantJoinDates" to joinDates
-                ))
-                Log.d("ChatRepository", "Updated chat room $destinationId participants: $participants")
-            }
-        }.await()
+    companion object {
+        private const val TAG = "ChatRepository"
     }
 
+    // ── Rooms ──────────────────────────────────────────────────────────────
 
-
-    override suspend fun removeExpiredParticipants(destinationId: String) {
-        val chatRoomRef = firestore.collection("chatRooms").document(destinationId)
-
-        firestore.runTransaction { transaction ->
-            val snapshot = transaction.get(chatRoomRef)
-
-            val joinDatesMap = snapshot.get("participantJoinDates") as? Map<String, Any>
-            val joinDates = mutableMapOf<String, com.google.firebase.Timestamp>()
-
-            // Convert to Firebase Timestamp consistently
-            joinDatesMap?.forEach { (key, value) ->
-                when (value) {
-                    is com.google.firebase.Timestamp -> joinDates[key] = value
-                    is java.util.Date -> joinDates[key] = com.google.firebase.Timestamp(value)
-                    is Long -> joinDates[key] = com.google.firebase.Timestamp(java.util.Date(value))
-                }
-            }
-
-            val now = com.google.firebase.Timestamp.now() // Use Firebase Timestamp
-            val sixMonthsInMillis = 183L * 24 * 60 * 60 * 1000
-
-            val toRemove = joinDates.filter { (_, timestamp) ->
-                (now.toDate().time - timestamp.toDate().time) > sixMonthsInMillis
-            }.keys
-
-            if (toRemove.isNotEmpty()) {
-                val participants = (snapshot.get("participants") as? List<*>)
-                    ?.filterIsInstance<String>()
-                    ?.toMutableList() ?: mutableListOf()
-
-                toRemove.forEach { userId ->
-                    participants.remove(userId)
-                    joinDates.remove(userId)
-                }
-
-                transaction.update(chatRoomRef, mapOf(
-                    "participants" to participants,
-                    "participantJoinDates" to joinDates
-                ))
-            }
-        }.await()
+    override suspend fun getRooms(): Resource<List<ChatRoom>> = safeCall(TAG, "getRooms") {
+        val r = chatApiService.getRooms()
+        if (r.isSuccessful) Resource.Success(r.body() ?: emptyList())
+        else Resource.httpError(r.code())
     }
 
-
-    override suspend fun sendGroupMessage(destinationId: String, message: ChatMessage) {
-        firestore.collection("chatRooms")
-            .document(destinationId)
-            .collection("messages")
-            .add(message)
-            .await()
+    override suspend fun createGroupRoom(
+        name: String,
+        participantIds: List<String>
+    ): Resource<ChatRoom> = safeCall(TAG, "createGroupRoom") {
+        val request = CreateRoomRequest(name = name, isGroup = true, participantIds = participantIds)
+        val r = chatApiService.createGroupRoom(request)
+        if (r.isSuccessful) Resource.Success(r.body()!!)
+        else Resource.httpError(r.code())
     }
 
-    override fun listenToGroupMessages(
-        destinationId: String,
-        onMessages: (List<ChatMessage>) -> Unit
-    ): ListenerRegistration {
-        return firestore.collection("chatRooms")
-            .document(destinationId)
-            .collection("messages")
-            .orderBy("timestamp")
-            .addSnapshotListener { snapshot, _ ->
-                val messages = snapshot?.documents?.mapNotNull {
-                    it.toObject(ChatMessage::class.java)
-                } ?: emptyList()
-                onMessages(messages)
-            }
-    }
-
-    override suspend fun getOrCreatePrivateChat(userId1: String, userId2: String): String {
-        val chatId = if (userId1 < userId2) "${userId1}_$userId2" else "${userId2}_$userId1"
-        val chatRef = firestore.collection("privateChats").document(chatId)
-        val doc = chatRef.get().await()
-
-        if (!doc.exists()) {
-            chatRef.set(mapOf(
-                "id" to chatId,
-                "users" to listOf(userId1, userId2),
-                "createdAt" to Timestamp.now()
-            )).await()
+    override suspend fun createPrivateRoom(otherUserId: String): Resource<ChatRoom> =
+        safeCall(TAG, "createPrivateRoom") {
+            val r = chatApiService.createPrivateRoom(otherUserId)
+            if (r.isSuccessful) Resource.Success(r.body()!!)
+            else Resource.httpError(r.code())
         }
-        return chatId
-    }
 
-    override suspend fun sendPrivateMessage(chatId: String, message: ChatMessage) {
-        firestore.collection("privateChats")
-            .document(chatId)
-            .collection("messages")
-            .add(message)
-            .await()
-    }
+    // ── Messages ───────────────────────────────────────────────────────────
 
-    override fun listenToPrivateMessages(
-        chatId: String,
-        onMessages: (List<ChatMessage>) -> Unit
-    ): ListenerRegistration {
-        return firestore.collection("privateChats")
-            .document(chatId)
-            .collection("messages")
-            .orderBy("timestamp")
-            .addSnapshotListener { snapshot, _ ->
-                val messages = snapshot?.documents?.mapNotNull {
-                    it.toObject(ChatMessage::class.java)
-                } ?: emptyList()
-                onMessages(messages)
+    override suspend fun getMessages(roomId: String): Resource<List<ChatMessage>> =
+        safeCall(TAG, "getMessages") {
+            val r = chatApiService.getMessages(roomId)
+            if (r.isSuccessful) Resource.Success(r.body() ?: emptyList())
+            else Resource.httpError(r.code())
+        }
+
+    override suspend fun sendMessage(request: SendMessageRequest): Resource<ChatMessage> =
+        safeCall(TAG, "sendMessage") {
+            val r = chatApiService.sendMessage(request)
+            if (r.isSuccessful) Resource.Success(r.body()!!)
+            else Resource.httpError(r.code())
+        }
+
+    override suspend fun deleteMessage(messageId: String, roomId: String): Resource<Unit> =
+        safeCall(TAG, "deleteMessage") {
+            val userId = getCurrentUserId() ?: return@safeCall Resource.Error("Not authenticated")
+            val request = DeleteMessageRequest(messageId, roomId, userId)
+            val r = chatApiService.deleteMessage(request)
+            if (r.isSuccessful) Resource.Success(Unit)
+            else Resource.httpError(r.code())
+        }
+
+    override suspend fun leaveRoom(roomId: String): Resource<ChatRoom> =
+        safeCall(TAG, "leaveRoom") {
+            val r = chatApiService.leaveRoom(roomId)
+            if (r.isSuccessful) Resource.Success(r.body()!!)
+            else Resource.httpError(r.code())
+        }
+
+    // ── User ───────────────────────────────────────────────────────────────
+
+    override suspend fun getCurrentUserId(): String? = appPreferences.userEmail.first()
+
+    // ── Chat Previews ──────────────────────────────────────────────────────
+
+    override suspend fun getChatPreviews(): Resource<List<ChatPreview>> {
+        return when (val roomsResult = getRooms()) {
+            is Resource.Success -> {
+                val previews = roomsResult.data.map { room ->
+                    ChatPreview(
+                        chatId = room.id,
+                        isGroup = room.isGroup,
+                        name = room.name,
+                        lastMessage = room.lastMessage?.content ?: "Start chatting!",
+                        lastMessageTime = room.lastMessage?.timestamp?.let {
+                            parseTimestamp(it)
+                        } ?: 0L,
+                        destination = if (room.isGroup) room.name else null
+                    )
+                }.sortedByDescending { it.lastMessageTime }
+                Resource.Success(previews)
             }
-    }
-
-    override suspend fun getGroupChatPreviews(userId: String): List<ChatPreview> {
-        val chatRooms = firestore.collection("chatRooms")
-            .whereArrayContains("participants", userId)
-            .get()
-            .await()
-
-        return chatRooms.documents.mapNotNull { doc ->
-            val destinationName = doc.getString("destinationName") ?: return@mapNotNull null
-            val destinationId = doc.getString("id") ?: doc.id
-
-            // Get the latest message from the subcollection
-            val latestMessageQuery = firestore.collection("chatRooms")
-                .document(destinationId)
-                .collection("messages")
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .limit(1)
-                .get()
-                .await()
-
-            val latest = latestMessageQuery.documents.firstOrNull()?.toObject(ChatMessage::class.java)
-            ChatPreview(
-                chatId = destinationId,
-                isGroup = true,
-                name = destinationName,
-                lastMessage = latest?.text ?: "Start chatting!",
-                lastMessageTime = latest?.timestamp?.toDate()?.time ?: 0L,
-                destination = destinationName
-            )
+            is Resource.Error -> roomsResult
+            is Resource.Loading -> Resource.loading()
         }
     }
 
-    override suspend fun getPrivateChatPreviews(userId: String): List<ChatPreview> {
-        val chats = firestore.collection("privateChats")
-            .whereArrayContains("users", userId)
-            .get()
-            .await()
+    // ── Helpers ────────────────────────────────────────────────────────────
 
-        return chats.documents.mapNotNull { doc ->
-            val chatId = doc.getString("id") ?: doc.id
-            val users = doc.get("users") as? List<*> ?: return@mapNotNull null
-            val otherUserId = users.filterIsInstance<String>().firstOrNull { it != userId } ?: return@mapNotNull null
-
-            // Get the other user's display name (optional: you could cache this)
-            val userDoc = firestore.collection("users").document(otherUserId).get().await()
-            val otherUserName = userDoc.getString("name") ?: "User"
-
-            val latestMessageQuery = firestore.collection("privateChats")
-                .document(chatId)
-                .collection("messages")
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .limit(1)
-                .get()
-                .await()
-
-            val latest = latestMessageQuery.documents.firstOrNull()?.toObject(ChatMessage::class.java)
-
-            ChatPreview(
-                chatId = chatId,
-                isGroup = false,
-                name = otherUserName,
-                lastMessage = latest?.text ?: "Start chatting!",
-                lastMessageTime = latest?.timestamp?.toDate()?.time ?: 0L
-            )
-        }
-    }
-
-    override suspend fun getUserDetails(userId: String): com.example.wanderbee.data.remote.models.chat.ChatUser {
-        val userDoc = firestore.collection("users").document(userId).get().await()
-        val name = userDoc.getString("displayName") ?: userDoc.getString("name") ?: "User"
-        val photoUrl = userDoc.getString("photoUrl")
-        return com.example.wanderbee.data.remote.models.chat.ChatUser(id = userId, name = name, photoUrl = photoUrl)
-    }
-
-
+    private fun parseTimestamp(iso: String): Long = try {
+        java.time.LocalDateTime.parse(iso)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toInstant()
+            .toEpochMilli()
+    } catch (_: Exception) { 0L }
 }
+
+/**
+ * Central error-handling helper used by both [DefaultChatRepository] and
+ * [DestinationRepository].  Catches [IOException] (no network) and
+ * [HttpException] (non-2xx Retrofit throws) in addition to any other runtime
+ * exception.
+ */
+internal inline fun <T> safeCall(
+    tag: String,
+    operation: String,
+    block: () -> Resource<T>
+): Resource<T> = try {
+    block()
+} catch (e: IOException) {
+    Log.e(tag, "$operation – network error", e)
+    Resource.Error("No internet connection. Please check your network.")
+} catch (e: HttpException) {
+    Log.e(tag, "$operation – HTTP ${e.code()}", e)
+    Resource.httpError(e.code())
+} catch (e: Exception) {
+    Log.e(tag, "$operation – unexpected error", e)
+    Resource.Error("Unexpected error: ${e.message ?: "unknown"}")
+}
+

@@ -161,7 +161,7 @@ fun AllChatsScreen(
                                             loadingStates[chatId] = false
                                         }
                                     } else {
-                                        val currentUserId = chatViewModel.auth.currentUser?.uid
+                                        val currentUserId = chatViewModel.getCurrentUserId()
                                         val otherUserId = getOtherUserIdFromChatId(chatId, currentUserId)
                                         if (otherUserId != null) {
                                             coroutineScope.launch {

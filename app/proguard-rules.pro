@@ -308,6 +308,25 @@
 -keep class * extends android.view.View { *; }
 
 # ===========================================
+# GEMINI AI PROTECTION
+# ===========================================
+
+# Google Gemini AI
+-keep class com.google.ai.client.generativeai.** { *; }
+-keep interface com.google.ai.client.generativeai.** { *; }
+
+# Keep Gemini API service
+-keep class com.example.wanderbee.data.remote.apiService.GeminiApiService { *; }
+
+# Keep Gemini models
+-keep class com.example.wanderbee.data.remote.models.AI.GeminiRequest { *; }
+-keep class com.example.wanderbee.data.remote.models.AI.GeminiResponse { *; }
+
+# Keep Gemini repository
+-keep class com.example.wanderbee.data.repository.GeminiRepository { *; }
+-keep class com.example.wanderbee.data.repository.DefaultGeminiRepository { *; }
+
+# ===========================================
 # FINAL NOTES
 # ===========================================
 

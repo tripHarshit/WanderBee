@@ -6,10 +6,11 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wanderbee.data.repository.DefaultPexelsRepository
-import com.example.wanderbee.data.remote.apiService.GeoDbApiService
+import com.example.wanderbee.data.repository.DestinationResult
+import com.example.wanderbee.data.repository.DestinationsRepository
 import com.example.wanderbee.data.remote.models.destinations.City
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import com.example.wanderbee.data.remote.models.destinations.StaticDestination
+import com.example.wanderbee.utils.AppPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -24,14 +25,14 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeScreenViewModel @Inject constructor(
     private val defaultPexelsRepository: DefaultPexelsRepository,
-    private val geoDbApiService: GeoDbApiService
+    private val destinationsRepository: DestinationsRepository,
+    private val appPreferences: AppPreferences
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "HomeScreenViewModel"
         private const val SEARCH_DEBOUNCE_DELAY = 800L // Increased to 800ms to reduce API calls
         private const val MIN_SEARCH_LENGTH = 2 // Only search if query is at least 2 characters
-        private const val MAX_RETRIES = 2
     }
 
     private val _imageUrls = mutableStateMapOf<String, String?>()
@@ -48,6 +49,20 @@ class HomeScreenViewModel @Inject constructor(
     private val _isSearchLoading = MutableStateFlow(false)
     val isSearchLoading: StateFlow<Boolean> = _isSearchLoading.asStateFlow()
 
+    /** Backend-served popular cities (replaces the local JSON asset). */
+    private val _popularCities = MutableStateFlow<List<City>>(emptyList())
+    val popularCities: StateFlow<List<City>> = _popularCities.asStateFlow()
+    private val _isPopularCitiesLoading = MutableStateFlow(false)
+    val isPopularCitiesLoading: StateFlow<Boolean> = _isPopularCitiesLoading.asStateFlow()
+
+    /** Indian destinations from /api/v1/destinations/static/india (replaces local JSON). */
+    private val _indianDestinations = MutableStateFlow<List<StaticDestination>>(emptyList())
+    val indianDestinations: StateFlow<List<StaticDestination>> = _indianDestinations.asStateFlow()
+
+    /** All destinations from /api/v1/destinations/static/all (replaces local JSON). */
+    private val _allDestinations = MutableStateFlow<List<StaticDestination>>(emptyList())
+    val allDestinations: StateFlow<List<StaticDestination>> = _allDestinations.asStateFlow()
+
     // Debounce job for search
     private var searchJob: Job? = null
     
@@ -57,20 +72,79 @@ class HomeScreenViewModel @Inject constructor(
 
     @SuppressLint("SuspiciousIndentation")
     fun fetchUserName() {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
-
-        FirebaseFirestore.getInstance()
-            .collection("users")
-            .document(uid)
-            .get()
-            .addOnSuccessListener { document ->
-                val name = document.getString("name")
+        viewModelScope.launch {
+            appPreferences.userName.collect { name ->
                 _name.value = name
                     ?.split(" ")
                     ?.firstOrNull()
                     ?.uppercase(Locale.ROOT)
                     ?: " "
             }
+        }
+    }
+
+    /**
+     * Fetch popular cities from the destination-service REST endpoint.
+     * Results are stored in [popularCities] and also cached in [popularCitiesCache]
+     * so that the search fallback doesn't need a second round-trip.
+     */
+    fun fetchPopularCities(limit: Int = 25) {
+        if (_popularCities.value.isNotEmpty()) return // already loaded
+        viewModelScope.launch {
+            _isPopularCitiesLoading.value = true
+            when (val result = destinationsRepository.getPopularCities(limit)) {
+                is DestinationResult.Success -> {
+                    val cities = result.data.data
+                    _popularCities.value = cities
+                    // Also warm the search fallback cache
+                    if (popularCitiesCache.isEmpty()) popularCitiesCache.addAll(cities)
+                    _error.value = null
+                    Log.d(TAG, "fetchPopularCities: ${cities.size} cities loaded")
+                }
+                is DestinationResult.Error -> {
+                    Log.e(TAG, "fetchPopularCities error: ${result.message}")
+                }
+            }
+            _isPopularCitiesLoading.value = false
+        }
+    }
+
+    /**
+     * Fetch Indian destinations from /api/v1/destinations/static/india.
+     * Replaces the old JsonResponses().indianDestinations(context) call.
+     */
+    fun fetchIndianDestinations() {
+        if (_indianDestinations.value.isNotEmpty()) return // already loaded
+        viewModelScope.launch {
+            when (val result = destinationsRepository.getIndianDestinations()) {
+                is DestinationResult.Success -> {
+                    _indianDestinations.value = result.data
+                    Log.d(TAG, "fetchIndianDestinations: ${result.data.size} destinations loaded")
+                }
+                is DestinationResult.Error -> {
+                    Log.e(TAG, "fetchIndianDestinations error: ${result.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Fetch all destinations from /api/v1/destinations/static/all.
+     * Replaces the old JsonResponses().popularDestinations(context) call.
+     */
+    fun fetchAllDestinations() {
+        if (_allDestinations.value.isNotEmpty()) return // already loaded
+        viewModelScope.launch {
+            when (val result = destinationsRepository.getAllDestinations()) {
+                is DestinationResult.Success -> {
+                    _allDestinations.value = result.data
+                    Log.d(TAG, "fetchAllDestinations: ${result.data.size} destinations loaded")
+                }
+                is DestinationResult.Error -> {
+                    Log.e(TAG, "fetchAllDestinations error: ${result.message}")
+                }
+            }
+        }
     }
 
     fun loadCityCoverImage(cityName: String) {
@@ -78,7 +152,7 @@ class HomeScreenViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val response = defaultPexelsRepository.getPexelsPhotos(cityName)
+                val response = defaultPexelsRepository.getBackendPhotos(cityName)
                 val url = response.photos.shuffled().random().src.medium
                 _imageUrls[cityName] = url
             } catch (e: Exception) {
@@ -124,97 +198,67 @@ class HomeScreenViewModel @Inject constructor(
                     return@launch
                 }
                 
-                // Try to use the search endpoint first with retry mechanism
-                var retryCount = 0
-                var searchResponse: com.example.wanderbee.data.remote.models.destinations.GeoDbResponse? = null
-                
-                while (retryCount <= MAX_RETRIES && searchResponse == null) {
-                    try {
-                        Log.d(TAG, "Using search endpoint with namePrefix: '$query' (attempt ${retryCount + 1})")
-                        searchResponse = geoDbApiService.searchCities(
-                            namePrefix = query,
-                            limit = 10
-                        )
-                        Log.d(TAG, "Search endpoint returned ${searchResponse.data.size} cities")
-                        Log.d(TAG, "Search response data: ${searchResponse.data}")
-                    } catch (e: Exception) {
-                        retryCount++
-                        if (e.message?.contains("429") == true && retryCount <= MAX_RETRIES) {
-                            val delayMs = (1000L * retryCount) // Exponential backoff: 1s, 2s
-                            Log.w(TAG, "Rate limited, retrying in ${delayMs}ms (attempt $retryCount)")
-                            delay(delayMs)
+                // Call backend search via repository
+                Log.d(TAG, "Using search endpoint with namePrefix: '$query'")
+                when (val result = destinationsRepository.searchCities(namePrefix = query, limit = 10)) {
+                    is DestinationResult.Success -> {
+                        val cities = result.data.data
+                        Log.d(TAG, "Search returned ${cities.size} cities")
+                        
+                        if (cities.isNotEmpty()) {
+                            _searchResults.value = cities
+                            searchCache[query] = cities
+                            Log.d(TAG, "Using search results: ${cities.map { "${it.name}, ${it.country}" }}")
                         } else {
-                            throw e
+                            // Fallback to popular cities and filter locally
+                            Log.d(TAG, "Search returned no results, falling back to popular cities")
+                            
+                            val citiesToSearch = if (popularCitiesCache.isNotEmpty()) {
+                                Log.d(TAG, "Using cached popular cities (${popularCitiesCache.size} cities)")
+                                popularCitiesCache
+                            } else {
+                                Log.d(TAG, "Fetching popular cities from backend")
+                                when (val popularResult = destinationsRepository.getPopularCities(limit = 50)) {
+                                    is DestinationResult.Success -> {
+                                        val popular = popularResult.data.data
+                                        Log.d(TAG, "Received ${popular.size} cities from popular endpoint")
+                                        popularCitiesCache.addAll(popular)
+                                        popular
+                                    }
+                                    is DestinationResult.Error -> {
+                                        Log.e(TAG, "Failed to fetch popular cities: ${popularResult.message}")
+                                        _error.value = popularResult.message
+                                        _searchResults.value = emptyList()
+                                        return@launch
+                                    }
+                                }
+                            }
+                            
+                            val filtered = citiesToSearch.filter { city ->
+                                city.name.contains(query, ignoreCase = true) ||
+                                        city.country.contains(query, ignoreCase = true)
+                            }
+                            Log.d(TAG, "Filtered to ${filtered.size} matching cities")
+                            _searchResults.value = filtered
+                            searchCache[query] = filtered
                         }
+                        
+                        if (_searchResults.value.isEmpty()) {
+                            Log.w(TAG, "No cities found matching query: '$query'")
+                        }
+                        _error.value = null
+                    }
+                    is DestinationResult.Error -> {
+                        Log.e(TAG, "Search failed: ${result.message}")
+                        _searchResults.value = emptyList()
+                        _error.value = result.message
                     }
                 }
-                
-                if (searchResponse?.data?.isNotEmpty() == true) {
-                    _searchResults.value = searchResponse.data
-                    // Cache the results
-                    searchCache[query] = searchResponse.data
-                    Log.d(TAG, "Using search results: ${searchResponse.data.map { "${it.name}, ${it.country}" }}")
-                } else {
-                    // Fallback to popular cities and filter
-                    Log.d(TAG, "Search returned no results, falling back to popular cities")
-                    
-                    // Use cached popular cities if available
-                    val citiesToSearch = if (popularCitiesCache.isNotEmpty()) {
-                        Log.d(TAG, "Using cached popular cities (${popularCitiesCache.size} cities)")
-                        popularCitiesCache
-                    } else {
-                        Log.d(TAG, "Fetching popular cities from API")
-                        val response = geoDbApiService.getPopularCities(limit = 50, offset = 0)
-                        Log.d(TAG, "Received ${response.data.size} cities from popular cities API")
-                        Log.d(TAG, "Popular cities sample: ${response.data.take(5).map { "${it.name}, ${it.country}" }}")
-                        // Cache popular cities
-                        popularCitiesCache.addAll(response.data)
-                        response.data
-                    }
-                    
-                    // Filter cities that match the query
-                    val filtered = citiesToSearch.filter { city ->
-                        val matches = city.name.contains(query, ignoreCase = true) ||
-                                city.country.contains(query, ignoreCase = true)
-                        Log.d(TAG, "City: ${city.name}, Country: ${city.country}, Matches: $matches")
-                        matches
-                    }
-                    
-                    Log.d(TAG, "Filtered to ${filtered.size} matching cities")
-                    _searchResults.value = filtered
-                    // Cache the filtered results
-                    searchCache[query] = filtered
-                }
-                
-                if (_searchResults.value.isEmpty()) {
-                    Log.w(TAG, "No cities found matching query: '$query'")
-                }
-                
-                _error.value = null
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Error searching cities", e)
+                Log.e(TAG, "Unexpected error searching cities", e)
                 _searchResults.value = emptyList()
-                
-                // Handle specific error types
-                when {
-                    e.message?.contains("429") == true -> {
-                        _error.value = "Too many requests. Please wait a moment and try again."
-                        Log.w(TAG, "Rate limit exceeded, suggesting user to wait")
-                    }
-                    e.message?.contains("401") == true -> {
-                        _error.value = "API authentication failed. Please check your API key."
-                        Log.e(TAG, "API authentication failed")
-                    }
-                    e.message?.contains("403") == true -> {
-                        _error.value = "API access forbidden. Please check your subscription."
-                        Log.e(TAG, "API access forbidden")
-                    }
-                    else -> {
-                        _error.value = "Search failed: ${e.message ?: "Unknown error"}"
-                        Log.e(TAG, "Generic search error", e)
-                    }
-                }
+                _error.value = "Search failed: ${e.message ?: "Unknown error"}"
             } finally {
                 _isSearchLoading.value = false
                 Log.d(TAG, "Search completed")

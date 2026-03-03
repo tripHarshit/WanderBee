@@ -78,15 +78,15 @@ fun GetShowSignUpScreen(navController: NavController, authViewModel: AuthViewMod
                 }
             }
         }
-        State.Error -> {
-            SignUpScreen(navController,authViewModel,true)
+        is State.Error -> {
+            SignUpScreen(navController,authViewModel,(uiState as State.Error).message)
         }
-        State.Idle -> {SignUpScreen(navController,authViewModel,false)}
+        State.Idle -> {SignUpScreen(navController,authViewModel,null)}
     }
 
 }
 @Composable
-fun SignUpScreen(navController: NavController, authViewModel: AuthViewModel = hiltViewModel(),isError: Boolean){
+fun SignUpScreen(navController: NavController, authViewModel: AuthViewModel = hiltViewModel(),errorMessage: String?){
 
     val context = LocalContext.current
 
@@ -185,8 +185,8 @@ fun SignUpScreen(navController: NavController, authViewModel: AuthViewModel = hi
                 )
             }
 
-            //caution if fields are empty
-            if(isError){
+            //caution if fields are empty or error occurred
+            if(errorMessage != null){
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -194,12 +194,12 @@ fun SignUpScreen(navController: NavController, authViewModel: AuthViewModel = hi
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.baseline_error_24),
-                        contentDescription = "Success",
+                        contentDescription = "Error",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "All fields must be filled!",
+                        text = errorMessage,
                         modifier = Modifier.padding(start = 8.dp),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error
@@ -241,12 +241,7 @@ fun SignUpScreen(navController: NavController, authViewModel: AuthViewModel = hi
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
-                onClick = { launcher.launch(googleClient.signInIntent)
-                    navController.navigate(WanderBeeScreens.HomeScreen.name){
-                        popUpTo(WanderBeeScreens.SignUpScreen.name){
-                            inclusive = true
-                        }
-                    }},
+                onClick = { launcher.launch(googleClient.signInIntent) },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(Color.Transparent),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)

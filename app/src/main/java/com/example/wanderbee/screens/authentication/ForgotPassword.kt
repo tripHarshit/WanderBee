@@ -127,12 +127,12 @@ fun ForgotPassword(navController: NavController, authViewModel: AuthViewModel = 
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.baseline_error_24),
-                            contentDescription = "Success",
+                            contentDescription = "Error",
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = "Email doesn't exist! Try Again",
+                            text = (uiState as State.Error).message,
                             modifier = Modifier.padding(start = 8.dp),
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.error

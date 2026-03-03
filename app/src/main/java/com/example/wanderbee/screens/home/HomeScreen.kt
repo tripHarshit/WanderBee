@@ -71,7 +71,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -82,9 +81,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.wanderbee.R
-import com.example.wanderbee.data.remote.apiService.JsonResponses
-import com.example.wanderbee.data.remote.models.destinations.Destination
-import com.example.wanderbee.data.remote.models.destinations.IndianDestination
+import com.example.wanderbee.data.remote.models.destinations.City
+import com.example.wanderbee.data.remote.models.destinations.StaticDestination
 import com.example.wanderbee.navigation.WanderBeeScreens
 import com.example.wanderbee.utils.BottomNavigationBar
 import com.example.wanderbee.utils.HomeScreenDestinationsCard
@@ -93,7 +91,6 @@ import com.example.wanderbee.utils.TripSummaryCard
 
 import coil.compose.AsyncImage
 import com.example.wanderbee.screens.profile.ProfileViewModel
-import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.ui.draw.rotate
 import androidx.compose.material3.Divider
@@ -105,17 +102,16 @@ fun HomeScreen(
     navController: NavController,
     homeScreenViewModel: HomeScreenViewModel = hiltViewModel()
 ) {
-    val popularDestinations = rememberSaveable { mutableStateOf<List<Destination>>(emptyList()) }
-    val indianDestinations = rememberSaveable { mutableStateOf<List<IndianDestination>>(emptyList()) }
+    // Popular cities are now served by the destination-service REST endpoint.
+    val popularCities by homeScreenViewModel.popularCities.collectAsState()
+    val indianDestinations by homeScreenViewModel.indianDestinations.collectAsState()
 
-    val context = LocalContext.current
     LaunchedEffect(Unit) {
-        val popularDestinationsResponse = JsonResponses().popularDestinations(context)
-        popularDestinations.value = popularDestinationsResponse
-
-        val indianDestinationsResponse = JsonResponses().indianDestinations(context)
-        indianDestinations.value = indianDestinationsResponse
-       homeScreenViewModel.fetchUserName()
+        // Fetch popular cities from backend (non-blocking; UI reacts to StateFlow)
+        homeScreenViewModel.fetchPopularCities()
+        // Fetch Indian destinations from backend (replaces local JSON asset)
+        homeScreenViewModel.fetchIndianDestinations()
+        homeScreenViewModel.fetchUserName()
     }
 
     val name by homeScreenViewModel.name.collectAsState()
@@ -176,11 +172,12 @@ fun HomeScreen(
 
             HomeScreenContent(
                 modifier = Modifier,
-                popularDestinations = popularDestinations,
+                popularCities = popularCities,
                 indianDestinations = indianDestinations,
                 scrollState = scrollState,
                 navController = navController
             )
+
         }
     }
 }
@@ -191,8 +188,8 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContent(
     modifier: Modifier,
-    popularDestinations: MutableState<List<Destination>>,
-    indianDestinations: MutableState<List<IndianDestination>>,
+    popularCities: List<City>,
+    indianDestinations: List<StaticDestination>,
     scrollState: ScrollState,
     homeScreenViewModel: HomeScreenViewModel = hiltViewModel(),
     navController: NavController
@@ -218,7 +215,7 @@ fun HomeScreenContent(
             Spacer(modifier = Modifier.height(34.dp))
 
             SubHeading(title = "Popular Destinations")
-            PopularDestinationCardsRow(popularDestinations, homeScreenViewModel,  navController )
+            PopularDestinationCardsRow(popularCities, homeScreenViewModel, navController)
             Spacer(modifier = Modifier.height(34.dp))
 
             SubHeading(title = "Weather and Packing Tips")
@@ -765,30 +762,44 @@ fun AiTripSuggestionCard(){
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun PopularDestinationCardsRow(
-    popularDestinations: MutableState<List<Destination>>,
+    popularCities: List<City>,
     homeScreenViewModel: HomeScreenViewModel = hiltViewModel(),
     navController: NavController
 ){
+    val isLoading by homeScreenViewModel.isPopularCitiesLoading.collectAsState()
+
+    if (isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.material3.CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
+        return
+    }
+
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(end = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(popularDestinations.value.shuffled().take(25), key = { it.name }) { destination ->
+        items(popularCities.shuffled().take(25), key = { it.name }) { city ->
 
-            LaunchedEffect(destination.name) {
-                homeScreenViewModel.loadCityCoverImage(destination.name)
+            LaunchedEffect(city.name) {
+                homeScreenViewModel.loadCityCoverImage(city.name)
             }
 
-            val imageUrl = homeScreenViewModel.imageUrls[destination.name]
-
-            val isLoading = imageUrl == null
+            val imageUrl = homeScreenViewModel.imageUrls[city.name]
 
             HomeScreenDestinationsCard(
-                city = destination.name,
-                place = destination.country,
+                city = city.name,
+                place = city.country,
                 imageUrl = imageUrl,
-                isLoading = isLoading,
+                isLoading = imageUrl == null,
                 navController = navController
             )
         }
@@ -798,7 +809,7 @@ fun PopularDestinationCardsRow(
 @RequiresApi(Build.VERSION_CODES.S)
 @Composable
 fun IndianDestinationCardsRow(
-    indianDestinations: MutableState<List<IndianDestination>>,
+    indianDestinations: List<StaticDestination>,
     homeScreenViewModel: HomeScreenViewModel = hiltViewModel(),
     navController: NavController
 ){
@@ -807,7 +818,7 @@ fun IndianDestinationCardsRow(
         contentPadding = PaddingValues(end = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(indianDestinations.value.shuffled().take(25), key = {it.name}) { destination ->
+        items(indianDestinations.shuffled().take(25), key = { it.name }) { destination ->
             LaunchedEffect(destination.name) {
                 homeScreenViewModel.loadCityCoverImage(destination.name)
             }
@@ -817,7 +828,7 @@ fun IndianDestinationCardsRow(
 
             HomeScreenDestinationsCard(
                 city = destination.name,
-                place = destination.state,
+                place = destination.state ?: destination.country ?: "",
                 imageUrl = imageUrl,
                 isLoading = isLoading,
                 navController = navController

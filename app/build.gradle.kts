@@ -29,9 +29,9 @@ android {
         // Add the API keys using buildConfigField
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProperties["OPENWEATHER_API_KEY"]}\"")
         buildConfigField("String", "GEO_DB_API_KEY", "\"${localProperties["GEO_DB_API_KEY"]}\"")
-        buildConfigField("String", "HUGGINGFACE_API_KEY", "\"${localProperties["HUGGINGFACE_API_KEY"]}\"")
         buildConfigField("String", "PEXELS_API_KEY", "\"${localProperties["PEXELS_API_KEY"]}\"")
         buildConfigField("String", "AI_API_KEY", "\"${localProperties["AI_API_KEY"]}\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"${localProperties["GEMINI_API_KEY"]}\"")
 
         // Add Room schema location
         ksp {
@@ -95,8 +95,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-database-ktx")
-    implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
     
@@ -115,6 +113,7 @@ dependencies {
     // Retrofit dependencies
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.retrofit2:converter-scalars:3.0.0")
     implementation("com.squareup.okhttp3:okhttp:4.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
     implementation("com.google.code.gson:gson:2.10.1")
@@ -144,6 +143,9 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
     implementation("androidx.media3:media3-common:1.4.1")
+
+    // Google Gemini AI (using REST API via Retrofit)
+    // Using existing Retrofit setup for Gemini API calls
 
 
 }

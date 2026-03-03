@@ -3,7 +3,6 @@ package com.example.wanderbee.screens.splash
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wanderbee.utils.AppPreferences
-import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,8 +18,7 @@ sealed class SplashState {
 
 @HiltViewModel
 class SplashViewModel @Inject constructor(
-    private val appPreferences: AppPreferences,
-    private val auth: FirebaseAuth
+    private val appPreferences: AppPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<SplashState>(SplashState.Loading)
@@ -32,9 +30,8 @@ class SplashViewModel @Inject constructor(
 
     private fun checkNavigationState() {
         viewModelScope.launch {
-            val isFirstLaunch = appPreferences.isFirstLaunch.collect { isFirstLaunch ->
-                val isLoggedIn = auth.currentUser != null
-                
+            val isLoggedIn = appPreferences.isLoggedIn()
+            appPreferences.isFirstLaunch.collect { isFirstLaunch ->
                 _state.value = when {
                     isFirstLaunch -> SplashState.NavigateToOnboarding
                     isLoggedIn -> SplashState.NavigateToHome
@@ -51,6 +48,11 @@ class SplashViewModel @Inject constructor(
     }
 
     fun isUserLoggedIn(): Boolean {
-        return auth.currentUser != null
+        var loggedIn = false
+        // This is a quick synchronous-style check; prefer using the suspend version
+        viewModelScope.launch {
+            loggedIn = appPreferences.isLoggedIn()
+        }
+        return loggedIn
     }
 } 

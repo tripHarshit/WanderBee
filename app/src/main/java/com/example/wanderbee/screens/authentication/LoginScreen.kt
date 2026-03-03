@@ -64,15 +64,15 @@ fun GetShowSignInScreen(navController: NavController, authViewModel: AuthViewMod
                 }
             }
         }
-        State.Error -> {LoginScreen(navController,authViewModel,true)}
-        State.Idle -> {LoginScreen(navController,authViewModel,false)}
+        is State.Error -> {LoginScreen(navController,authViewModel,(uiState as State.Error).message)}
+        State.Idle -> {LoginScreen(navController,authViewModel,null)}
 
     }
 
 }
 
 @Composable
-fun LoginScreen(navController: NavController,authViewModel: AuthViewModel = hiltViewModel(),isError: Boolean){
+fun LoginScreen(navController: NavController,authViewModel: AuthViewModel = hiltViewModel(),errorMessage: String?){
 
     val context = LocalContext.current
     val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -147,7 +147,7 @@ fun LoginScreen(navController: NavController,authViewModel: AuthViewModel = hilt
             }
 
             //show caution if state is error
-            if(isError){
+            if(errorMessage != null){
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center,
@@ -155,12 +155,12 @@ fun LoginScreen(navController: NavController,authViewModel: AuthViewModel = hilt
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.baseline_error_24),
-                        contentDescription = "Success",
+                        contentDescription = "Error",
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Authorisation Revoked! Incorrect email or password",
+                        text = errorMessage,
                         modifier = Modifier.padding(start = 8.dp),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.error
@@ -202,12 +202,7 @@ fun LoginScreen(navController: NavController,authViewModel: AuthViewModel = hilt
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
-                onClick = { launcher.launch(googleClient.signInIntent)
-                          navController.navigate(WanderBeeScreens.HomeScreen.name){
-                              popUpTo(WanderBeeScreens.LoginScreen.name){
-                                  inclusive = true
-                              }
-                          }},
+                onClick = { launcher.launch(googleClient.signInIntent) },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(Color.Transparent),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
